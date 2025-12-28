@@ -13,6 +13,7 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "PayMind",
   description: "A friendly payment reminder app.",
+  manifest: "/manifest.json",
 };
 
 export default function RootLayout({

@@ -117,6 +117,26 @@ service cloud.firestore {
       allow create: if isOwner(userId) && isCreatingSelf(userId);
       allow update: if isExistingOwner(userId) && isUpdatingSelf();
       allow delete: if isExistingOwner(userId);
+
+      // ===================================================================
+      // Subcollection: fcmTokens
+      // ===================================================================
+      /**
+       * @description Controls access to a user's FCM tokens for push notifications.
+       * @path /users/{userId}/fcmTokens/{tokenId}
+       * @allow (create) Authenticated user 'user_abc' can add a new FCM token.
+       * @allow (read, delete) Authenticated user 'user_abc' can read or delete their own tokens.
+       * @deny (list) Listing tokens is disallowed for security.
+       * @deny (update) Tokens should be created/deleted, not updated.
+       * @principle Ensures a user can only manage notification tokens for their own account.
+       */
+       match /fcmTokens/{tokenId} {
+         allow read: if isOwner(userId);
+         allow list: if false;
+         allow create: if isOwner(userId) && isCreatingValidSubdocument(userId);
+         allow update: if false;
+         allow delete: if isOwner(userId);
+       }
     }
 
     // ===================================================================

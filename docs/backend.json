@@ -125,6 +125,28 @@
         "category",
         "amount"
       ]
+    },
+    "FcmToken": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "FcmToken",
+      "description": "Stores a Firebase Cloud Messaging (FCM) token for a specific user device.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "The UID of the user this token belongs to."
+        },
+        "token": {
+          "type": "string",
+          "description": "The FCM registration token."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp when the token was created."
+        }
+      },
+      "required": ["userId", "token", "createdAt"]
     }
   },
   "auth": {
@@ -190,8 +212,28 @@
             }
           ]
         }
+      },
+      {
+        "path": "/users/{userId}/fcmTokens/{tokenId}",
+        "definition": {
+          "entityName": "FcmToken",
+          "schema": {
+            "$ref": "#/backend/entities/FcmToken"
+          },
+          "description": "Stores FCM tokens for a user's devices.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "Unique identifier for the user."
+            },
+            {
+              "name": "tokenId",
+              "description": "The FCM token, used as the document ID for uniqueness."
+            }
+          ]
+        }
       }
     ],
-    "reasoning": "The Firestore structure is designed to be secure, scalable, and easily debuggable, following the core design principles and strategy mandates. The primary focus is on achieving authorization independence to avoid hierarchical authorization dependencies, which can hinder atomic operations and complicate debugging. It also supports robust listing operations, enforcing that rules are not filters (QAPs). The structure is designed for the PayMind app, which focuses on payment reminders and expense tracking.\n\nUsers have path-based ownership of their Reminders and ExpenseLogs. This means reminders and expenses are stored in subcollections of the user document, enforcing clear ownership and simplifying security rules.\n\nAuthorization Independence is achieved because access to reminders and expenses are determined only by the user's authentication and the path structure, without needing to read data from parent documents.\n\nQAPs (Rules Are Not Filters) are supported because listing operations are scoped to the user's subcollections, ensuring that users can only access their own data. This prevents the need for filtering on the client-side, improving security and performance.\n\nThe database is also designed for clarity and predictability with explicit state modeling via the `status` field in Reminders."
+    "reasoning": "The Firestore structure is designed to be secure, scalable, and easily debuggable, following the core design principles and strategy mandates. The primary focus is on achieving authorization independence to avoid hierarchical authorization dependencies, which can hinder atomic operations and complicate debugging. It also supports robust listing operations, enforcing that rules are not filters (QAPs). The structure is designed for the PayMind app, which focuses on payment reminders and expense tracking.\n\nUsers have path-based ownership of their Reminders and ExpenseLogs. This means reminders and expenses are stored in subcollections of the user document, enforcing clear ownership and simplifying security rules.\n\nAuthorization Independence is achieved because access to reminders and expenses are determined only by the user's authentication and the path structure, without needing to read data from parent documents.\n\nQAPs (Rules Are Not Filters) are supported because listing operations are scoped to the user's subcollections, ensuring that users can only access their own data. This prevents the need for filtering on the client-side, improving security and performance.\n\nThe database is also designed for clarity and predictability with explicit state modeling via the `status` field in Reminders. The fcmTokens subcollection is added to store device tokens for push notifications, scoped by user for security."
   }
 }
