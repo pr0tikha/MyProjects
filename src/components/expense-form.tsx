@@ -62,6 +62,7 @@ const formSchema = z.object({
     "Business",
     "Travel",
     "Other",
+    "Health"
   ]),
   recurrence: z.enum(["One-off", "Monthly"]),
   reminderTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Invalid time format (HH:mm)"),
@@ -70,7 +71,7 @@ const formSchema = z.object({
 interface ExpenseFormProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
-  onSave: (data: z.infer<typeof formSchema>) => void;
+  onSave: (data: Omit<Expense, 'id' | 'status'>) => void;
   expense: Expense | null;
 }
 

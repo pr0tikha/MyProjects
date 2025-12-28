@@ -16,6 +16,7 @@ import {
   MoreHorizontal,
   Wifi,
   Repeat,
+  HeartPulse,
 } from "lucide-react";
 import type { ExpenseCategory } from "@/lib/types";
 
@@ -32,4 +33,5 @@ export const categoryIcons: { [key in ExpenseCategory]: LucideIcon } = {
   Business: Briefcase,
   Travel: Plane,
   Other: MoreHorizontal,
+  Health: HeartPulse,
 };

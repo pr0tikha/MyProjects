@@ -2,7 +2,6 @@
 
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { Plus, Loader2 } from "lucide-react";
-import { collection, doc, addDoc, updateDoc, deleteDoc } from "firebase/firestore";
 
 import type { Expense } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -20,21 +19,46 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useAuth, useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
+import { useAuth, useUser } from "@/firebase";
 import { initiateAnonymousSignIn } from "@/firebase/non-blocking-login";
+
+const initialExpenses: Expense[] = [
+    {
+        id: '1',
+        title: 'Netflix Subscription',
+        amount: 15.99,
+        dueDate: new Date(new Date().setDate(new Date().getDate() + 5)),
+        category: 'Subscriptions',
+        recurrence: 'Monthly',
+        reminderTime: '10:00',
+        status: 'Due',
+    },
+    {
+        id: '2',
+        title: 'Gym Membership',
+        amount: 40,
+        dueDate: new Date(new Date().setDate(new Date().getDate() - 2)),
+        category: 'Health',
+        recurrence: 'Monthly',
+        reminderTime: '08:00',
+        status: 'Due',
+    },
+    {
+        id: '3',
+        title: 'Internet Bill',
+        amount: 60,
+        dueDate: new Date(new Date().setDate(new Date().getDate() + 10)),
+        category: 'Utilities',
+        recurrence: 'Monthly',
+        reminderTime: '18:00',
+        status: 'Paid',
+    }
+]
 
 function AuthAwareHome() {
   const { toast } = useToast();
-  const firestore = useFirestore();
-  const { user } = useUser();
-
-  const expensesQuery = useMemoFirebase(() => {
-    if (!user || !firestore) return null;
-    return collection(firestore, `users/${user.uid}/reminders`);
-  }, [user, firestore]);
   
-  const { data: expenses, isLoading: isLoadingExpenses } = useCollection<Omit<Expense, 'id'>>(expensesQuery);
-
+  const [expenses, setExpenses] = useState<Expense[]>(initialExpenses);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [deletingExpenseId, setDeletingExpenseId] = useState<string | null>(
@@ -56,9 +80,8 @@ function AuthAwareHome() {
   };
 
   const confirmDelete = async () => {
-    if (deletingExpenseId && user && firestore) {
-      const docRef = doc(firestore, `users/${user.uid}/reminders/${deletingExpenseId}`);
-      await deleteDoc(docRef);
+    if (deletingExpenseId) {
+      setExpenses(prev => prev.filter(e => e.id !== deletingExpenseId));
       setDeletingExpenseId(null);
       toast({
         title: "Expense Deleted",
@@ -68,27 +91,21 @@ function AuthAwareHome() {
   };
 
   const handleSaveExpense = async (expenseData: Omit<Expense, "id" | "status">) => {
-    if (!user || !firestore) return;
-
     if (editingExpense) {
       // Update existing expense
-      const docRef = doc(firestore, `users/${user.uid}/reminders/${editingExpense.id}`);
-      await updateDoc(docRef, {
-        ...expenseData,
-        dueDate: expenseData.dueDate,
-      });
+      setExpenses(prev => prev.map(e => e.id === editingExpense.id ? { ...editingExpense, ...expenseData } : e));
       toast({
         title: "Expense Updated",
         description: `"${expenseData.title}" has been updated.`,
       });
     } else {
       // Add new expense
-      const collectionRef = collection(firestore, `users/${user.uid}/reminders`);
-      await addDoc(collectionRef, {
-        ...expenseData,
-        status: "Due",
-        userId: user.uid,
-      });
+      const newExpense: Expense = {
+          ...expenseData,
+          id: Date.now().toString(),
+          status: 'Due',
+      };
+      setExpenses(prev => [...prev, newExpense]);
       toast({
         title: "Expense Added",
         description: `"${expenseData.title}" has been added to your log.`,
@@ -100,42 +117,39 @@ function AuthAwareHome() {
 
   const handleStatusChange = useCallback(
     async (id: string, status: "Paid" | "Snoozed" | "Due") => {
-      if (!user || !firestore) return;
-      const docRef = doc(firestore, `users/${user.uid}/reminders/${id}`);
-      
-      let updateData: { status: "Paid" | "Snoozed" | "Due", snoozeUntil?: Date } = { status };
+      let updatedExpense: Expense | undefined;
+      setExpenses(prev => prev.map(e => {
+        if (e.id === id) {
+          updatedExpense = { ...e, status };
+          if (status === "Snoozed") {
+            const snoozeUntil = new Date();
+            snoozeUntil.setHours(snoozeUntil.getHours() + 1);
+            updatedExpense.snoozeUntil = snoozeUntil;
+          }
+          return updatedExpense;
+        }
+        return e;
+      }));
 
-      if (status === "Snoozed") {
-        const snoozeUntil = new Date();
-        snoozeUntil.setHours(snoozeUntil.getHours() + 1);
-        updateData.snoozeUntil = snoozeUntil;
-        toast({
-          title: "Reminder Snoozed",
-          description: "We'll remind you again in an hour.",
-        });
-      }
-
-      await updateDoc(docRef, updateData);
-
-      if (status === "Paid") {
-        toast({
-          title: "Marked as Paid!",
-          description: "Great job staying on top of your finances.",
-        });
+      if (updatedExpense) {
+        if (status === "Snoozed") {
+          toast({
+            title: "Reminder Snoozed",
+            description: "We'll remind you again in an hour.",
+          });
+        } else if (status === "Paid") {
+          toast({
+            title: "Marked as Paid!",
+            description: "Great job staying on top of your finances.",
+          });
+        }
       }
     },
-    [user, firestore, toast]
+    [toast]
   );
 
   const sortedExpenses = useMemo(() => {
-    if (!expenses) return [];
-    // Firestore Timestamps need to be converted to JS Dates
-    const expensesWithDates = expenses.map(e => ({
-      ...e,
-      dueDate: (e.dueDate as any).toDate ? (e.dueDate as any).toDate() : e.dueDate,
-      snoozeUntil: (e.snoozeUntil as any)?.toDate ? (e.snoozeUntil as any).toDate() : e.snoozeUntil,
-    }));
-    return [...expensesWithDates].sort(
+    return [...expenses].sort(
       (a, b) => a.dueDate.getTime() - b.dueDate.getTime()
     );
   }, [expenses]);
@@ -153,7 +167,7 @@ function AuthAwareHome() {
       toast({
         title: `Reminder: ${nextDue.title}`,
         description: `Your payment of $${nextDue.amount} is due soon.`,
-        duration: Infinity, // Keep toast open until user interaction
+        duration: Infinity, 
         action: (
           <div className="flex flex-col gap-2 w-full">
             <Button
@@ -182,15 +196,6 @@ function AuthAwareHome() {
       });
     }
   }, [upcomingExpenses, handleStatusChange, toast]);
-
-
-  if (isLoadingExpenses) {
-    return (
-      <div className="flex h-full w-full items-center justify-center bg-gray-900">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
 
   return (
     <div className="flex flex-col h-full bg-gray-900 text-gray-50">
@@ -256,7 +261,7 @@ export default function Home() {
     }
   }, [user, isUserLoading, auth]);
 
-  if (isUserLoading || !user) {
+  if (isUserLoading) {
     return (
       <div className="flex h-full w-full items-center justify-center bg-gray-900">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />

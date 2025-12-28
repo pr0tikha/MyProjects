@@ -10,7 +10,8 @@ export type ExpenseCategory =
   | "Childcare"
   | "Business"
   | "Travel"
-  | "Other";
+  | "Other"
+  | "Health";
   
 export type ExpenseRecurrence = "One-off" | "Monthly";
 export type ExpenseStatus = "Due" | "Paid" | "Snoozed";
