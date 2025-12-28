@@ -24,4 +24,5 @@ export interface Expense {
   reminderTime: string;
   category: ExpenseCategory;
   status: ExpenseStatus;
+  snoozeUntil?: Date;
 }

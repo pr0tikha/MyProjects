@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { categoryIcons } from "@/components/icons";
 import { Badge } from "@/components/ui/badge";
-import { format } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,7 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { Edit, MoreVertical, Trash2 } from "lucide-react";
+import { Edit, MoreVertical, Trash2, BellOff } from "lucide-react";
 import { useMemo } from "react";
 
 interface ExpenseListProps {
@@ -26,6 +26,7 @@ interface ExpenseListProps {
 function ExpenseItem({ expense, onEdit, onDelete }: { expense: Expense, onEdit: (expense: Expense) => void, onDelete: (id: string) => void }) {
   const Icon = categoryIcons[expense.category];
   const isOverdue = expense.dueDate < new Date() && expense.status === 'Due';
+  const isSnoozed = expense.status === 'Snoozed' && expense.snoozeUntil && expense.snoozeUntil > new Date();
 
   return (
     <div className="flex items-center gap-4 py-3">
@@ -38,6 +39,7 @@ function ExpenseItem({ expense, onEdit, onDelete }: { expense: Expense, onEdit: 
           Due: {format(expense.dueDate, "MMM dd, yyyy")}
         </p>
         {isOverdue && <Badge variant="destructive" className="mt-1">Overdue</Badge>}
+        {isSnoozed && <Badge variant="secondary" className="mt-1 flex items-center gap-1"><BellOff className="h-3 w-3" /> Snoozed for {formatDistanceToNow(expense.snoozeUntil as Date)}</Badge>}
       </div>
       <div className="text-right">
         <p className="font-bold text-lg">
@@ -74,9 +76,9 @@ function EmptyState({ message }: { message: string }) {
 }
 
 export default function ExpenseList({ expenses, onEdit, onDelete }: ExpenseListProps) {
-
   const { upcoming, history } = useMemo(() => {
     const now = new Date();
+    // Upcoming includes due items and snoozed items that are not yet ready to re-appear.
     const upcoming = expenses.filter(e => e.status === 'Due' || e.status === 'Snoozed');
     const history = expenses.filter(e => e.status === 'Paid');
     return { upcoming, history };

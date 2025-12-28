@@ -75,7 +75,7 @@ function AuthAwareHome() {
       const docRef = doc(firestore, `users/${user.uid}/reminders/${editingExpense.id}`);
       await updateDoc(docRef, {
         ...expenseData,
-        dueDate: expenseData.dueDate, // Ensure Date object is passed
+        dueDate: expenseData.dueDate,
       });
       toast({
         title: "Expense Updated",
@@ -102,7 +102,20 @@ function AuthAwareHome() {
     async (id: string, status: "Paid" | "Snoozed" | "Due") => {
       if (!user || !firestore) return;
       const docRef = doc(firestore, `users/${user.uid}/reminders/${id}`);
-      await updateDoc(docRef, { status });
+      
+      let updateData: { status: "Paid" | "Snoozed" | "Due", snoozeUntil?: Date } = { status };
+
+      if (status === "Snoozed") {
+        const snoozeUntil = new Date();
+        snoozeUntil.setHours(snoozeUntil.getHours() + 1);
+        updateData.snoozeUntil = snoozeUntil;
+        toast({
+          title: "Reminder Snoozed",
+          description: "We'll remind you again in an hour.",
+        });
+      }
+
+      await updateDoc(docRef, updateData);
 
       if (status === "Paid") {
         toast({
@@ -120,6 +133,7 @@ function AuthAwareHome() {
     const expensesWithDates = expenses.map(e => ({
       ...e,
       dueDate: (e.dueDate as any).toDate ? (e.dueDate as any).toDate() : e.dueDate,
+      snoozeUntil: (e.snoozeUntil as any)?.toDate ? (e.snoozeUntil as any).toDate() : e.snoozeUntil,
     }));
     return [...expensesWithDates].sort(
       (a, b) => a.dueDate.getTime() - b.dueDate.getTime()
@@ -127,8 +141,9 @@ function AuthAwareHome() {
   }, [expenses]);
 
   const upcomingExpenses = useMemo(() => {
+    const now = new Date();
     return sortedExpenses.filter(
-      (e) => e.status === "Due" || e.status === "Snoozed"
+      (e) => (e.status === "Due" || (e.status === "Snoozed" && e.snoozeUntil && e.snoozeUntil <= now))
     );
   }, [sortedExpenses]);
 
@@ -138,11 +153,13 @@ function AuthAwareHome() {
       toast({
         title: `Reminder: ${nextDue.title}`,
         description: `Your payment of $${nextDue.amount} is due soon.`,
+        duration: Infinity, // Keep toast open until user interaction
         action: (
-          <div className="flex gap-2">
+          <div className="flex flex-col gap-2 w-full">
             <Button
               variant="secondary"
               size="sm"
+              className="w-full"
               onClick={() => handleStatusChange(nextDue.id, "Snoozed")}
             >
               Snooze
@@ -150,6 +167,7 @@ function AuthAwareHome() {
             <Button
               variant="default"
               size="sm"
+              className="w-full"
               onClick={() => handleStatusChange(nextDue.id, "Paid")}
             >
               Mark Paid
@@ -165,14 +183,6 @@ function AuthAwareHome() {
     }
   }, [upcomingExpenses, handleStatusChange, toast]);
 
-  useEffect(() => {
-    if (upcomingExpenses.length > 0) {
-      const timer = setTimeout(() => {
-        showReminder();
-      }, 5000); // Show reminder 5 seconds after component mounts
-      return () => clearTimeout(timer);
-    }
-  }, [showReminder, upcomingExpenses.length]);
 
   if (isLoadingExpenses) {
     return (
