@@ -1,0 +1,164 @@
+/**
+ * # Core Philosophy
+ * This ruleset enforces a strict user-ownership model. All user-generated data,
+ * such as reminders and expense logs, is stored in subcollections under that
+ * user's specific document. This ensures that users can only ever access their
+ * own data, and there is no possibility of data leakage between users.
+ *
+ * # Data Structure
+ * All data is nested hierarchically under the `/users/{userId}` path. This
+ * structure provides a clear, scalable, and secure way to scope data to
+ * individual users. For example, a user's reminders are located at
+ * `/users/{userId}/reminders/{reminderId}`.
+ *
+ * # Key Security Decisions
+ * - **Strict Ownership**: All rules are based on the principle that a user's
+ *   authenticated UID must match the `{userId}` segment in the document path.
+ * - **No User Enumeration**: Listing the top-level `/users` collection is
+ *   explicitly disallowed to prevent malicious actors from discovering all
+ *   users of the application.
+ * - **Default Deny**: The default security posture is to deny all requests.
+ *   Access is only granted through explicit `allow` statements.
+ *
+ * # Denormalization for Authorization
+ * The User, Reminder, and ExpenseLog schemas include a `userId` or `id` field.
+ * This denormalized ID is used on write operations to enforce relational
+ * integrity, ensuring that a document created under a user's path also
+ * contains a matching internal ID, creating a durable and verifiable ownership
+ * link.
+ *
+ * # Structural Segregation
+ * The architecture uses separate collections for each data type under a user's
+ * document (`reminders`, `expenseLogs`). This segregation is a natural outcome
+ * of the user-centric data model and provides strong security boundaries.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===================================================================
+    // Helper Functions
+    // ===================================================================
+
+    /**
+     * Checks if the user is authenticated.
+     */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /**
+     * Checks if the authenticated user's UID matches the provided userId.
+     * This is the foundation of the user-ownership model.
+     * @param userId The user ID from the document path.
+     */
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    /**
+     * Checks for ownership on an existing document. Used for safe updates and deletes.
+     * Denies requests for documents that do not exist, preventing unintended side effects.
+     * @param userId The user ID from the document path.
+     */
+    function isExistingOwner(userId) {
+      return isOwner(userId) && resource != null;
+    }
+
+    /**
+     * Validates that a user's root document is being created correctly.
+     * Ensures the internal `id` field matches the document's path ID.
+     * @param userId The user ID from the document path.
+     */
+    function isCreatingSelf(userId) {
+      return request.resource.data.id == userId;
+    }
+
+    /**
+     * Validates that a user's immutable root document ID is not changed on update.
+     */
+    function isUpdatingSelf() {
+      return request.resource.data.id == resource.data.id;
+    }
+
+    /**
+     * Validates a new subcollection document for relational integrity.
+     * Ensures the internal `userId` field matches the parent user's path ID.
+     * @param userId The user ID from the document path.
+     */
+    function isCreatingValidSubdocument(userId) {
+      return request.resource.data.userId == userId;
+    }
+
+    /**
+     * Validates that a subcollection document's immutable `userId` is not changed on update.
+     */
+    function isUpdatingValidSubdocument() {
+      return request.resource.data.userId == resource.data.userId;
+    }
+
+
+    // ===================================================================
+    // Collection: users
+    // ===================================================================
+
+    /**
+     * @description Controls access to a user's own profile document.
+     * @path /users/{userId}
+     * @allow (get) An authenticated user with UID 'user_abc' can read '/users/user_abc'.
+     * @allow (create) An authenticated user with UID 'user_abc' can create '/users/user_abc' if the document data contains `id: 'user_abc'`.
+     * @deny (list) No user, authenticated or not, can list all documents in the `/users` collection.
+     * @deny (update) An authenticated user with UID 'user_xyz' cannot update '/users/user_abc'.
+     * @principle Restricts access to a user's own data tree and prevents user enumeration.
+     */
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow list: if false;
+      allow create: if isOwner(userId) && isCreatingSelf(userId);
+      allow update: if isExistingOwner(userId) && isUpdatingSelf();
+      allow delete: if isExistingOwner(userId);
+    }
+
+    // ===================================================================
+    // Subcollection: reminders
+    // ===================================================================
+
+    /**
+     * @description Controls access to a user's private payment reminders.
+     * @path /users/{userId}/reminders/{reminderId}
+     * @allow (create) An authenticated user 'user_abc' can create a reminder at '/users/user_abc/reminders/new_reminder' if the document contains `userId: 'user_abc'`.
+     * @allow (list) An authenticated user 'user_abc' can list all reminders under '/users/user_abc/reminders'.
+     * @deny (get) An authenticated user 'user_xyz' cannot read a reminder from '/users/user_abc/reminders/some_reminder'.
+     * @deny (update) An authenticated user 'user_abc' cannot change the `userId` field on an existing reminder.
+     * @principle Enforces path-based ownership for all CRUD and list operations on a user's private subcollection.
+     */
+    match /users/{userId}/reminders/{reminderId} {
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && isCreatingValidSubdocument(userId);
+      allow update: if isExistingOwner(userId) && isUpdatingValidSubdocument();
+      allow delete: if isExistingOwner(userId);
+    }
+
+    // ===================================================================
+    // Subcollection: expenseLogs
+    // ===================================================================
+
+    /**
+     * @description Controls access to a user's private expense logs.
+     * @path /users/{userId}/expenseLogs/{expenseLogId}
+     * @allow (create) An authenticated user 'user_abc' can create an expense log at '/users/user_abc/expenseLogs/new_log' if the document contains `userId: 'user_abc'`.
+     * @allow (list) An authenticated user 'user_abc' can list all expense logs under '/users/user_abc/expenseLogs'.
+     * @deny (get) An authenticated user 'user_xyz' cannot read an expense log from '/users/user_abc/expenseLogs/some_log'.
+     * @deny (update) An authenticated user 'user_abc' cannot change the `userId` field on an existing expense log.
+     * @principle Enforces path-based ownership for all CRUD and list operations on a user's private subcollection.
+     */
+    match /users/{userId}/expenseLogs/{expenseLogId} {
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && isCreatingValidSubdocument(userId);
+      allow update: if isExistingOwner(userId) && isUpdatingValidSubdocument();
+      allow delete: if isExistingOwner(userId);
+    }
+  }
+}
