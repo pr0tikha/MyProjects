@@ -130,7 +130,7 @@ export default function ExpenseForm({
       const result = await getSuggestedTime({
         paymentType: watchedCategory,
         paymentDueDate: format(watchedDueDate, 'yyyy-MM-dd'),
-        userWakeUpTime: '7:00 AM' // Mocked as per instructions
+        userWakeUpTime: '7:00 AM'
       });
       if (result.success && result.data) {
         setSuggestion({ time: result.data.reminderTime, reason: result.data.reasoning });
@@ -141,21 +141,28 @@ export default function ExpenseForm({
   const applySuggestion = () => {
     if (suggestion) {
       try {
-        // AI can return times like "6:00 PM" or "8:00 AM". We need to parse this.
         const parsedDate = parse(suggestion.time, 'h:mm a', new Date());
         const formattedTime = format(parsedDate, 'HH:mm');
         setValue('reminderTime', formattedTime, { shouldValidate: true });
         setSuggestion(null);
       } catch (error) {
         console.error("Failed to parse suggested time:", error);
-        // Fallback or show an error to the user if parsing fails
       }
     }
   }
 
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
-      <SheetContent className="flex flex-col">
+      <SheetContent 
+        className="flex flex-col"
+        onInteractOutside={(e) => {
+            const target = e.target as HTMLElement;
+            // Prevent closing if the user is interacting with the calendar popover
+            if (target.closest('[data-radix-popper-content-wrapper]')) {
+              e.preventDefault();
+            }
+        }}
+      >
         <SheetHeader>
           <SheetTitle>{expense ? "Edit Expense" : "Add New Expense"}</SheetTitle>
           <SheetDescription>
@@ -251,7 +258,7 @@ export default function ExpenseForm({
                         onSelect={field.onChange}
                         disabled={(date) => {
                             const today = new Date();
-                            today.setHours(0, 0, 0, 0);
+                            today.setHours(0, 0, 0, 0); // Set to start of today
                             return date < today;
                         }}
                         initialFocus
