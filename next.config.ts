@@ -1,15 +1,6 @@
 import type {NextConfig} from 'next';
-import path from 'path';
 
-// Using require for next-pwa due to module resolution issues.
-const withPWA = require('next-pwa')({
-  dest: 'public',
-  register: true,
-  skipWaiting: true,
-  disable: process.env.NODE_ENV === 'development'
-});
-
-const nextConfig: NextConfig = withPWA({
+const nextConfig: NextConfig = {
   /* config options here */
   typescript: {
     ignoreBuildErrors: true,
@@ -39,6 +30,6 @@ const nextConfig: NextConfig = withPWA({
       },
     ],
   },
-});
+};
 
 export default nextConfig;
