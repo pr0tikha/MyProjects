@@ -34,7 +34,7 @@ function ExpenseItem({ expense, onEdit, onDelete }: { expense: Expense, onEdit: 
       </div>
       <div className="flex-grow">
         <p className="font-semibold">{expense.title}</p>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-gray-400">
           Due: {format(expense.dueDate, "MMM dd, yyyy")}
         </p>
         {isOverdue && <Badge variant="destructive" className="mt-1">Overdue</Badge>}
@@ -68,7 +68,7 @@ function ExpenseItem({ expense, onEdit, onDelete }: { expense: Expense, onEdit: 
 function EmptyState({ message }: { message: string }) {
     return (
         <div className="text-center py-10 px-4">
-            <p className="text-muted-foreground">{message}</p>
+            <p className="text-gray-500">{message}</p>
         </div>
     )
 }
@@ -84,14 +84,14 @@ export default function ExpenseList({ expenses, onEdit, onDelete }: ExpenseListP
   
   return (
     <Tabs defaultValue="upcoming" className="w-full">
-      <TabsList className="grid w-full grid-cols-2">
+      <TabsList className="grid w-full grid-cols-2 bg-gray-800">
         <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
         <TabsTrigger value="history">History</TabsTrigger>
       </TabsList>
       <TabsContent value="upcoming">
-        <Card>
+        <Card className="bg-transparent border-0 shadow-none">
           <CardContent className="p-0">
-            <div className="divide-y">
+            <div className="divide-y divide-gray-800">
               {upcoming.length > 0 ? upcoming.map((expense) => (
                 <div key={expense.id} className="px-4">
                   <ExpenseItem expense={expense} onEdit={onEdit} onDelete={onDelete} />
@@ -102,11 +102,11 @@ export default function ExpenseList({ expenses, onEdit, onDelete }: ExpenseListP
         </Card>
       </TabsContent>
       <TabsContent value="history">
-        <Card>
+        <Card className="bg-transparent border-0 shadow-none">
           <CardContent className="p-0">
-             <div className="divide-y">
+             <div className="divide-y divide-gray-800">
               {history.length > 0 ? history.map((expense) => (
-                 <div key={expense.id} className="px-4 opacity-70">
+                 <div key={expense.id} className="px-4 opacity-60">
                     <ExpenseItem expense={expense} onEdit={onEdit} onDelete={onDelete} />
                   </div>
               )) : <EmptyState message="No payment history yet." />}

@@ -141,9 +141,13 @@ export default function Home() {
   const sortedExpenses = useMemo(() => {
     return [...expenses].sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
   }, [expenses]);
+  
+  const upcomingExpenses = useMemo(() => {
+    return sortedExpenses.filter(e => e.status === 'Due' || e.status === 'Snoozed');
+  }, [sortedExpenses]);
 
   const showReminder = useCallback(() => {
-    const nextDue = sortedExpenses.find(e => e.status === 'Due' && e.dueDate >= new Date());
+    const nextDue = upcomingExpenses.find(e => e.dueDate >= new Date());
     if (nextDue) {
       toast({
         title: `Reminder: ${nextDue.title}`,
@@ -165,21 +169,18 @@ export default function Home() {
         description: "You have no upcoming due payments.",
       });
     }
-  }, [sortedExpenses, handleStatusChange, toast]);
+  }, [upcomingExpenses, handleStatusChange, toast]);
 
   useEffect(() => {
-    // Show a reminder when the app first loads
     const timer = setTimeout(() => {
       showReminder();
-    }, 1000); // Delay to allow the UI to settle
-
+    }, 1000); 
     return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Run only once on initial load
+  }, [showReminder]);
 
   return (
-    <div className="flex flex-col h-full">
-      <Header onNotificationClick={showReminder} />
+    <div className="flex flex-col h-full bg-gray-900 text-gray-50">
+      <Header onNotificationClick={showReminder} expenses={upcomingExpenses} />
       <div className="flex-grow p-4 space-y-4">
         <ExpenseList 
           expenses={sortedExpenses} 
@@ -210,11 +211,11 @@ export default function Home() {
       </AlertDialog>
       <Button
         onClick={handleAddClick}
-        className="absolute bottom-6 right-6 h-14 w-14 rounded-full bg-accent text-accent-foreground shadow-lg hover:bg-accent/90"
+        className="absolute bottom-6 right-6 h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90"
         aria-label="Add new expense"
       >
         <Plus className="h-7 w-7" />
       </Button>
     </div>
   );
- 
+}

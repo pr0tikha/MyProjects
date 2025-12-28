@@ -1,19 +1,34 @@
 "use client";
 
-import { Bell } from "lucide-react";
+import { Bell, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import type { Expense } from "@/lib/types";
 
 interface HeaderProps {
   onNotificationClick: () => void;
+  expenses: Expense[];
 }
 
-export default function Header({ onNotificationClick }: HeaderProps) {
+export default function Header({ onNotificationClick, expenses }: HeaderProps) {
+  const totalUpcoming = expenses.reduce((sum, exp) => sum + exp.amount, 0);
+
   return (
-    <header className="flex items-center justify-between p-4 bg-background/80 backdrop-blur-sm border-b sticky top-0 z-10">
-      <h1 className="text-2xl font-bold text-primary">PayMind</h1>
-      <Button variant="ghost" size="icon" onClick={onNotificationClick} aria-label="Show notifications">
-        <Bell className="h-6 w-6" />
-      </Button>
+    <header className="p-4 bg-gray-900 border-b border-gray-800 sticky top-0 z-10">
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-2xl font-bold text-primary">PayMind</h1>
+        <Button variant="ghost" size="icon" onClick={onNotificationClick} aria-label="Show notifications">
+          <Bell className="h-6 w-6" />
+        </Button>
+      </div>
+      <div className="flex items-center gap-4 bg-gray-800 p-4 rounded-lg">
+        <div className="p-3 bg-primary/10 rounded-full">
+          <Wallet className="w-6 h-6 text-primary" />
+        </div>
+        <div>
+          <p className="text-sm text-gray-400">Upcoming Payments</p>
+          <p className="text-xl font-semibold">${totalUpcoming.toFixed(2)}</p>
+        </div>
+      </div>
     </header>
   );
 }
