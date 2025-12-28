@@ -36,15 +36,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { getSuggestedTime } from "@/app/actions";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { categoryIcons } from "./icons";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible";
 
 const formSchema = z.object({
   title: z.string().min(2, "Title must be at least 2 characters."),
@@ -119,6 +115,7 @@ export default function ExpenseForm({
       });
     }
     setSuggestion(null);
+    setIsCalendarOpen(false);
   }, [expense, isOpen, form]);
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
@@ -142,16 +139,12 @@ export default function ExpenseForm({
 
   const applySuggestion = () => {
     if (suggestion) {
-      try {
         // AI can return "6:00 PM", which needs parsing.
         const parsedDate = parse(suggestion.time, 'h:mm a', new Date());
         // Then format to "HH:mm" for the input
         const formattedTime = format(parsedDate, 'HH:mm');
         setValue('reminderTime', formattedTime, { shouldValidate: true });
         setSuggestion(null);
-      } catch (error) {
-        console.error("Failed to parse suggested time:", error);
-      }
     }
   }
 
@@ -227,42 +220,42 @@ export default function ExpenseForm({
               render={({ field }) => (
                 <FormItem className="flex flex-col">
                   <FormLabel>Due Date</FormLabel>
-                  <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
-                    <PopoverTrigger asChild>
-                      <FormControl>
-                        <Button
-                          variant={"outline"}
-                          className={cn(
-                            "w-full pl-3 text-left font-normal",
-                            !field.value && "text-muted-foreground"
-                          )}
-                        >
-                          {field.value ? (
-                            format(field.value, "PPP")
-                          ) : (
-                            <span>Pick a date</span>
-                          )}
-                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                        </Button>
-                      </FormControl>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={field.value}
-                        onSelect={(date) => {
-                          field.onChange(date);
-                          setIsCalendarOpen(false);
-                        }}
-                        disabled={(date) => {
-                            const today = new Date();
-                            today.setHours(0, 0, 0, 0); // Set to start of today
-                            return date < today;
-                        }}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
+                   <Collapsible open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
+                        <CollapsibleTrigger asChild>
+                             <Button
+                                variant={"outline"}
+                                className={cn(
+                                    "w-full pl-3 text-left font-normal",
+                                    !field.value && "text-muted-foreground"
+                                )}
+                                >
+                                {field.value ? (
+                                    format(field.value, "PPP")
+                                ) : (
+                                    <span>Pick a date</span>
+                                )}
+                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                </Button>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="p-0">
+                            <div className="flex justify-center">
+                            <Calendar
+                                mode="single"
+                                selected={field.value}
+                                onSelect={(date) => {
+                                field.onChange(date);
+                                setIsCalendarOpen(false);
+                                }}
+                                disabled={(date) => {
+                                    const today = new Date();
+                                    today.setHours(0, 0, 0, 0); // Set to start of today
+                                    return date < today;
+                                }}
+                                initialFocus
+                            />
+                            </div>
+                        </CollapsibleContent>
+                    </Collapsible>
                   <FormMessage />
                 </FormItem>
               )}
