@@ -24,6 +24,7 @@ const initialExpenses: Expense[] = [
   {
     id: "1",
     title: "Monthly Rent",
+    subCategory: "Rent",
     amount: 1500,
     dueDate: new Date(new Date().getFullYear(), new Date().getMonth(), 23),
     recurrence: "Monthly",

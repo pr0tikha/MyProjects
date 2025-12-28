@@ -47,6 +47,7 @@ import { categoryIcons } from "./icons";
 
 const formSchema = z.object({
   title: z.string().min(2, "Title must be at least 2 characters."),
+  subCategory: z.string().optional(),
   amount: z.coerce.number().positive("Amount must be a positive number."),
   dueDate: z.date({ required_error: "A due date is required." }),
   category: z.enum([
@@ -87,6 +88,7 @@ export default function ExpenseForm({
     resolver: zodResolver(formSchema),
     defaultValues: {
       title: "",
+      subCategory: "",
       amount: 0,
       recurrence: "Monthly",
       category: "Utilities",
@@ -108,6 +110,7 @@ export default function ExpenseForm({
     } else {
       form.reset({
         title: "",
+        subCategory: "",
         amount: undefined,
         dueDate: new Date(),
         recurrence: "Monthly",
@@ -173,6 +176,19 @@ export default function ExpenseForm({
                   <FormLabel>Title</FormLabel>
                   <FormControl>
                     <Input placeholder="e.g. Monthly Rent" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+             <FormField
+              control={form.control}
+              name="subCategory"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Sub-Category (Optional)</FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g. Rent, Mortgage" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
