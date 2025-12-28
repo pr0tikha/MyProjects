@@ -1,4 +1,17 @@
-export type ExpenseCategory = "Rent" | "Bill" | "Policy" | "Other";
+export type ExpenseCategory =
+  | "Housing"
+  | "Utilities"
+  | "Subscriptions"
+  | "Insurance"
+  | "Debt"
+  | "Transportation"
+  | "Food"
+  | "Pet Care"
+  | "Childcare"
+  | "Business"
+  | "Travel"
+  | "Other";
+  
 export type ExpenseRecurrence = "One-off" | "Monthly";
 export type ExpenseStatus = "Due" | "Paid" | "Snoozed";
 

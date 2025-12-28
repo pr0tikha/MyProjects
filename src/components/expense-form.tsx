@@ -7,7 +7,7 @@ import * as z from "zod";
 import { format } from "date-fns";
 import { Calendar as CalendarIcon, Loader2, Sparkles } from "lucide-react";
 
-import type { Expense, ExpenseCategory, ExpenseRecurrence } from "@/lib/types";
+import type { Expense, ExpenseCategory } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -49,7 +49,20 @@ const formSchema = z.object({
   title: z.string().min(2, "Title must be at least 2 characters."),
   amount: z.coerce.number().positive("Amount must be a positive number."),
   dueDate: z.date({ required_error: "A due date is required." }),
-  category: z.enum(["Rent", "Bill", "Policy", "Other"]),
+  category: z.enum([
+    "Housing",
+    "Utilities",
+    "Subscriptions",
+    "Insurance",
+    "Debt",
+    "Transportation",
+    "Food",
+    "Pet Care",
+    "Childcare",
+    "Business",
+    "Travel",
+    "Other",
+  ]),
   recurrence: z.enum(["One-off", "Monthly"]),
   reminderTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Invalid time format (HH:mm)"),
 });
@@ -76,7 +89,7 @@ export default function ExpenseForm({
       title: "",
       amount: 0,
       recurrence: "Monthly",
-      category: "Bill",
+      category: "Utilities",
       reminderTime: "09:00",
     },
   });
@@ -98,7 +111,7 @@ export default function ExpenseForm({
         amount: undefined,
         dueDate: new Date(),
         recurrence: "Monthly",
-        category: "Bill",
+        category: "Utilities",
         reminderTime: "09:00",
       });
     }

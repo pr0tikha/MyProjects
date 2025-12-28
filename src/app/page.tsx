@@ -28,7 +28,7 @@ const initialExpenses: Expense[] = [
     dueDate: new Date(new Date().getFullYear(), new Date().getMonth(), 23),
     recurrence: "Monthly",
     reminderTime: "09:00",
-    category: "Rent",
+    category: "Housing",
     status: "Due",
   },
   {
@@ -38,7 +38,7 @@ const initialExpenses: Expense[] = [
     dueDate: new Date(new Date().getFullYear(), new Date().getMonth(), 15),
     recurrence: "Monthly",
     reminderTime: "18:00",
-    category: "Bill",
+    category: "Utilities",
     status: "Due",
   },
   {
@@ -48,7 +48,7 @@ const initialExpenses: Expense[] = [
     dueDate: new Date(new Date().getFullYear(), new Date().getMonth() - 1, 28),
     recurrence: "Monthly",
     reminderTime: "12:00",
-    category: "Policy",
+    category: "Insurance",
     status: "Paid",
   },
   {
@@ -58,7 +58,7 @@ const initialExpenses: Expense[] = [
     dueDate: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 5),
     recurrence: 'Monthly',
     reminderTime: '08:00',
-    category: 'Other',
+    category: 'Subscriptions',
     status: 'Due'
   }
 ];
