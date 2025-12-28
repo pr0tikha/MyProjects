@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
@@ -156,11 +157,11 @@ export default function ExpenseForm({
       <SheetContent 
         className="flex flex-col"
         onInteractOutside={(e) => {
-            const target = e.target as HTMLElement;
-            // Prevent closing if the user is interacting with the calendar popover
-            if (target.closest('[data-radix-popper-content-wrapper]')) {
-              e.preventDefault();
-            }
+          const target = e.target as HTMLElement;
+          // Prevent closing if the user is interacting with the calendar popover
+          if (target.closest('.rdp')) {
+            e.preventDefault();
+          }
         }}
       >
         <SheetHeader>
