@@ -84,6 +84,7 @@ export default function ExpenseForm({
 }: ExpenseFormProps) {
   const [isPending, startTransition] = useTransition();
   const [suggestion, setSuggestion] = useState<{ time: string; reason: string } | null>(null);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -142,7 +143,9 @@ export default function ExpenseForm({
   const applySuggestion = () => {
     if (suggestion) {
       try {
+        // AI can return "6:00 PM", which needs parsing.
         const parsedDate = parse(suggestion.time, 'h:mm a', new Date());
+        // Then format to "HH:mm" for the input
         const formattedTime = format(parsedDate, 'HH:mm');
         setValue('reminderTime', formattedTime, { shouldValidate: true });
         setSuggestion(null);
@@ -154,16 +157,7 @@ export default function ExpenseForm({
 
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
-      <SheetContent 
-        className="flex flex-col"
-        onInteractOutside={(e) => {
-          const target = e.target as HTMLElement;
-          // Prevent closing if the user is interacting with the calendar popover
-          if (target.closest('.rdp')) {
-            e.preventDefault();
-          }
-        }}
-      >
+      <SheetContent className="flex flex-col">
         <SheetHeader>
           <SheetTitle>{expense ? "Edit Expense" : "Add New Expense"}</SheetTitle>
           <SheetDescription>
@@ -233,7 +227,7 @@ export default function ExpenseForm({
               render={({ field }) => (
                 <FormItem className="flex flex-col">
                   <FormLabel>Due Date</FormLabel>
-                  <Popover>
+                  <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                     <PopoverTrigger asChild>
                       <FormControl>
                         <Button
@@ -256,7 +250,10 @@ export default function ExpenseForm({
                       <Calendar
                         mode="single"
                         selected={field.value}
-                        onSelect={field.onChange}
+                        onSelect={(date) => {
+                          field.onChange(date);
+                          setIsCalendarOpen(false);
+                        }}
                         disabled={(date) => {
                             const today = new Date();
                             today.setHours(0, 0, 0, 0); // Set to start of today
