@@ -5,7 +5,7 @@ import { collection, doc, serverTimestamp, setDoc, Firestore } from "firebase/fi
 import { getFirebaseApp } from "@/firebase/provider"; // Assuming this hook exists to get the app instance
 
 // This is the public key from your Firebase project settings.
-const VAPID_KEY = "YOUR_VAPID_KEY_FROM_FIREBASE_CONSOLE";
+const VAPID_KEY = "BA3ckzYn9atYSDjrxWHnImXnpDtb2SMJFcFPs397HxlTjS_1yjVWKYljtkw1zbAKOFJ2C05jd7Iznayj-vSKt90";
 
 /**
  * Requests permission to show notifications and saves the token if granted.

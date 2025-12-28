@@ -1,8 +1,8 @@
 import type {NextConfig} from 'next';
 import path from 'path';
-import {withPWA} from 'next-pwa';
+import pwa from 'next-pwa';
 
-const pwaConfig = withPWA({
+const withPWA = pwa({
   dest: 'public',
   register: true,
   skipWaiting: true,
@@ -10,7 +10,7 @@ const pwaConfig = withPWA({
 });
 
 const nextConfig: NextConfig = {
-  ...pwaConfig,
+  ...withPWA,
   /* config options here */
   typescript: {
     ignoreBuildErrors: true,
