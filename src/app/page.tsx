@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useCallback, useEffect } from "react";
-import { Plus, Loader2, BellDot } from "lucide-react";
+import { Plus, Loader2 } from "lucide-react";
 import { addMonths } from "date-fns";
 
 import type { Expense } from "@/lib/types";
@@ -20,10 +20,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useAuth, useUser, useFirestore } from "@/firebase";
+import { useAuth, useUser } from "@/firebase";
 import { initiateAnonymousSignIn } from "@/firebase/non-blocking-login";
-import { requestNotificationPermission } from "@/firebase/messaging";
-import { collection, doc, setDoc } from "firebase/firestore";
 
 const initialExpenses: Expense[] = [
     {
@@ -60,8 +58,6 @@ const initialExpenses: Expense[] = [
 
 function AuthAwareHome() {
   const { toast } = useToast();
-  const firestore = useFirestore();
-  const { user } = useUser();
   
   const [expenses, setExpenses] = useState<Expense[]>(initialExpenses);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -69,56 +65,6 @@ function AuthAwareHome() {
   const [deletingExpenseId, setDeletingExpenseId] = useState<string | null>(
     null
   );
-  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined' && 'Notification' in window) {
-      if (Notification.permission === 'granted') {
-        setNotificationsEnabled(true);
-      }
-    }
-  }, []);
-
-  const handleEnableNotifications = async () => {
-    if (!user || !firestore) {
-      toast({
-        variant: "destructive",
-        title: "User not signed in",
-        description: "Please sign in to enable notifications.",
-      });
-      return;
-    }
-    try {
-      const token = await requestNotificationPermission();
-      if (token) {
-        console.log("FCM Token:", token);
-        const tokenRef = doc(collection(firestore, `users/${user.uid}/fcmTokens`), token);
-        await setDoc(tokenRef, {
-          token: token,
-          createdAt: new Date(),
-        });
-        setNotificationsEnabled(true);
-        toast({
-          title: "Notifications Enabled!",
-          description: "You'll now receive payment reminders.",
-        });
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Permission Denied",
-          description: "You need to grant permission to receive notifications.",
-        });
-      }
-    } catch (error) {
-      console.error("Error getting FCM token:", error);
-       toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Could not enable notifications. Please try again.",
-      });
-    }
-  };
-
 
   const handleAddClick = () => {
     setEditingExpense(null);
@@ -270,18 +216,6 @@ function AuthAwareHome() {
     <div className="flex flex-col h-full bg-gray-900 text-gray-50">
       <Header expenses={upcomingExpenses} />
       <div className="flex-grow p-4 space-y-4">
-        { !notificationsEnabled && (
-          <div className="bg-primary/10 border border-primary/20 text-primary-foreground p-4 rounded-lg flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <BellDot className="h-6 w-6 text-primary" />
-              <div>
-                <h4 className="font-semibold">Enable Reminders</h4>
-                <p className="text-sm text-gray-300">Get push notifications even when the app is closed.</p>
-              </div>
-            </div>
-            <Button size="sm" onClick={handleEnableNotifications}>Enable</Button>
-          </div>
-        )}
         <ExpenseList
           expenses={sortedExpenses}
           onEdit={handleEditClick}

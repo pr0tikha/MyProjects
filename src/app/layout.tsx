@@ -15,6 +15,9 @@ export const metadata: Metadata = {
   title: "PayMind",
   description: "A friendly payment reminder app.",
   manifest: "/manifest.json",
+  icons: {
+    apple: "/icons/icon-192x192.png",
+  },
 };
 
 export default function RootLayout({
@@ -35,6 +38,7 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
           rel="stylesheet"
         />
+        <meta name="theme-color" content="#1D9BF0" />
       </head>
       <body
         className={cn(
