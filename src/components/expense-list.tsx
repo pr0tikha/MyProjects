@@ -34,12 +34,9 @@ function ExpenseItem({ expense, onEdit, onDelete }: { expense: Expense, onEdit: 
       </div>
       <div className="flex-grow">
         <p className="font-semibold">{expense.title}</p>
-        <div className="flex items-center gap-2">
-            {expense.subCategory && <Badge variant="secondary">{expense.subCategory}</Badge>}
-            <p className="text-sm text-muted-foreground">
-              Due: {format(expense.dueDate, "MMM dd, yyyy")}
-            </p>
-        </div>
+        <p className="text-sm text-muted-foreground">
+          Due: {format(expense.dueDate, "MMM dd, yyyy")}
+        </p>
         {isOverdue && <Badge variant="destructive" className="mt-1">Overdue</Badge>}
       </div>
       <div className="text-right">

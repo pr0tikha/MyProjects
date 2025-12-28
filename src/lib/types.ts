@@ -18,7 +18,6 @@ export type ExpenseStatus = "Due" | "Paid" | "Snoozed";
 export interface Expense {
   id: string;
   title: string;
-  subCategory?: string;
   amount: number;
   dueDate: Date;
   recurrence: ExpenseRecurrence;
