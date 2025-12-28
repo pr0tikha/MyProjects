@@ -1,86 +1,86 @@
-// DO NOT USE 'use client'
-// This file should not be bundled by Next.js
 
-// Import the Firebase app and messaging packages
-import { initializeApp } from 'firebase/app';
-import { getMessaging } from 'firebase/messaging/sw';
-import { getFirestore, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+// Import the Firebase app and messaging services
+import { initializeApp } from "firebase/app";
+import { getMessaging } from "firebase/messaging/sw";
 
-// Your web app's Firebase configuration
+// **IMPORTANT:** This configuration is automatically replaced by a script
+// with your project's specific details during the build process.
+// You do not need to change it manually.
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  "projectId": "studio-1298148667-cb437",
+  "appId": "1:39717104496:web:e5efd3c79afb602d383db5",
+  "apiKey": "AIzaSyBUyLUm-N5kMKkdh6-jP44NF7cIUQTj1XM",
+  "authDomain": "studio-1298148667-cb437.firebaseapp.com",
+  "messagingSenderId": "39717104496"
 };
 
 
-// Initialize Firebase
+// Initialize the Firebase app in the service worker
 const app = initializeApp(firebaseConfig);
 const messaging = getMessaging(app);
-const firestore = getFirestore(app);
 
+// Handle background messages
+// This is where we'll display the notification to the user
 self.addEventListener('push', (event) => {
   console.log('[Service Worker] Push Received.');
-  const notificationData = event.data.json();
-  const { title, body, data } = notificationData.notification;
-  
-  const options = {
-    body: body,
+  const payload = event.data.json();
+  const notificationTitle = payload.notification.title;
+  const notificationOptions = {
+    body: payload.notification.body,
     icon: '/icon-192x192.png',
     badge: '/badge-72x72.png',
-    requireInteraction: true, // Keep notification open until user interaction
-    data: data, // Pass along reminderId, userId etc.
+    // Make the notification sticky until the user interacts with it
+    requireInteraction: true, 
+    // Add the action buttons
     actions: [
-      { action: 'snooze', title: 'Snooze (1 hr)' },
-      { action: 'mark-as-paid', title: 'Mark as Paid' },
+      { action: 'snooze', title: 'Snooze (1 hour)' },
+      { action: 'mark-as-paid', title: 'Mark as Paid' }
     ],
+    // Store the reminder data to use when an action is clicked
+    data: {
+      reminderId: payload.data.reminderId,
+      userId: payload.data.userId
+    }
   };
 
-  event.waitUntil(self.registration.showNotification(title, options));
+  event.waitUntil(
+    self.registration.showNotification(notificationTitle, notificationOptions)
+  );
 });
 
+
+// Handle notification clicks
 self.addEventListener('notificationclick', (event) => {
   console.log('[Service Worker] Notification click Received.');
 
   event.notification.close(); // Close the notification
 
-  const { userId, reminderId } = event.notification.data;
-  const action = event.action;
+  const { reminderId, userId } = event.notification.data;
 
-  if (!userId || !reminderId) {
-    console.error("Missing userId or reminderId in notification data");
-    return;
-  }
+  // This is a placeholder for the logic that will update Firestore.
+  // We cannot directly use the Firestore SDK here in the same way as the client app.
+  // A robust solution often involves sending this action to a server endpoint
+  // or using a lightweight fetch to a Firebase Function to update the data.
   
-  const reminderRef = doc(firestore, `users/${userId}/reminders/${reminderId}`);
+  // For now, we will log the intended action.
+  // In a full implementation, this would trigger an update in Firestore.
 
-  let updatePromise;
-
-  if (action === 'snooze') {
-    console.log(`[Service Worker] Snoozing reminder: ${reminderId}`);
-    const snoozeUntil = new Date();
-    snoozeUntil.setHours(snoozeUntil.getHours() + 1);
-    updatePromise = updateDoc(reminderRef, {
-      status: 'Snoozed',
-      snoozeUntil: snoozeUntil,
-    });
-
-  } else if (action === 'mark-as-paid') {
-    console.log(`[Service Worker] Marking reminder as paid: ${reminderId}`);
-    updatePromise = updateDoc(reminderRef, {
-      status: 'Paid',
-    });
-  } else {
-    // This handles the case where the user clicks the notification body itself
-    console.log('[Service Worker] Notification body clicked.');
-    updatePromise = Promise.resolve(); // No action needed, just resolve
+  switch (event.action) {
+    case 'snooze':
+      console.log(`User snoozed reminder: ${reminderId} for user: ${userId}`);
+      // **Future implementation:** Send a request to a Firebase Function
+      // to update the reminder's status to 'Snoozed' and set 'snoozeUntil'.
+      break;
+    case 'mark-as-paid':
+      console.log(`User marked reminder as paid: ${reminderId} for user: ${userId}`);
+      // **Future implementation:** Send a request to a Firebase Function
+      // to update the reminder's status to 'Paid'.
+      break;
+    default:
+      // This happens when the user clicks the notification body, not an action button.
+      // We can open the app here.
+      console.log('User clicked notification body. Opening app.');
+      clients.openWindow('/');
+      break;
   }
-
-  // Open the app when any part of the notification is clicked
-  const openAppPromise = clients.openWindow('/');
-
-  event.waitUntil(Promise.all([updatePromise, openAppPromise]));
 });
