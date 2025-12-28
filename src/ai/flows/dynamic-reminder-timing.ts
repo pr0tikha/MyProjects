@@ -42,24 +42,26 @@ const prompt = ai.definePrompt({
   name: 'determineReminderTimePrompt',
   input: {schema: DetermineReminderTimeInputSchema},
   output: {schema: DetermineReminderTimeOutputSchema},
-  prompt: `You are an AI assistant that helps determine the best time to set a payment reminder for a user.
+  prompt: `You are an AI assistant with a single, specific task: determine the best time to set a payment reminder for a user.
+  Your output MUST conform to the specified JSON schema. Do not deviate from this task.
 
-  Consider the user's typical wake-up time, the type of payment, and the payment due date.
+  You must consider the user's typical wake-up time, the type of payment, and the payment due date.
 
-  Wake-up time: {{{userWakeUpTime}}}
-  Payment type: {{{paymentType}}}
-  Payment due date: {{{paymentDueDate}}}
+  User Input:
+  - Wake-up time: {{{userWakeUpTime}}}
+  - Payment type: {{{paymentType}}}
+  - Payment due date: {{{paymentDueDate}}}
 
-  Reasoning:
+  Your Reasoning Guidelines:
   1. If the payment is urgent (e.g., due within 24 hours), set the reminder for immediately.
-  2. For rent, set the reminder for the morning of the due date.
-  3. For bills, set the reminder for 2 days before the due date in the evening.
-  4. For policies, set the reminder for 7 days before the due date in the afternoon.
-  5. Make sure the reminder is set during the day - avoid setting reminders late at night.
+  2. For "Housing" or "Rent", set the reminder for the morning of the due date.
+  3. For "Utilities" or other bills, set the reminder for 2 days before the due date in the evening.
+  4. For "Insurance" or policies, set the reminder for 7 days before the due date in the afternoon.
+  5. The reminder time must be during the user's waking hours. Avoid setting reminders late at night.
 
-  Return the reminder time and explain your reasoning.
+  Based on these guidelines, return the calculated reminder time and a brief explanation of your reasoning.
 
-  Example:
+  Example Output:
   {
     "reminderTime": "8:00 AM",
     "reasoning": "The reminder is set for 8:00 AM on the due date to allow ample time to make the rent payment.",
