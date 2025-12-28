@@ -4,7 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { format } from "date-fns";
+import { format, parse } from "date-fns";
 import { Calendar as CalendarIcon, Loader2, Sparkles } from "lucide-react";
 
 import type { Expense, ExpenseCategory } from "@/lib/types";
@@ -139,19 +139,17 @@ export default function ExpenseForm({
   }
 
   const applySuggestion = () => {
-    if(suggestion){
-       // Convert "6:00 PM" to "18:00"
-       const [time, modifier] = suggestion.time.split(' ');
-       let [hours, minutes] = time.split(':');
-       if (hours === '12') {
-         hours = '00';
-       }
-       if (modifier === 'PM') {
-         hours = (parseInt(hours, 10) + 12).toString();
-       }
-       const formattedTime = `${hours.padStart(2, '0')}:${minutes}`;
-       setValue('reminderTime', formattedTime, { shouldValidate: true });
-       setSuggestion(null);
+    if (suggestion) {
+      try {
+        // AI can return times like "6:00 PM" or "8:00 AM". We need to parse this.
+        const parsedDate = parse(suggestion.time, 'h:mm a', new Date());
+        const formattedTime = format(parsedDate, 'HH:mm');
+        setValue('reminderTime', formattedTime, { shouldValidate: true });
+        setSuggestion(null);
+      } catch (error) {
+        console.error("Failed to parse suggested time:", error);
+        // Fallback or show an error to the user if parsing fails
+      }
     }
   }
 

@@ -125,14 +125,18 @@ function AuthAwareHome() {
         
         if (expenseIndex === -1) return prev;
 
-        expenseToUpdate = newExpenses[expenseIndex];
+        expenseToUpdate = { ...newExpenses[expenseIndex] };
         expenseToUpdate.status = status;
 
         if (status === "Snoozed") {
           const snoozeUntil = new Date();
           snoozeUntil.setHours(snoozeUntil.getHours() + 1);
           expenseToUpdate.snoozeUntil = snoozeUntil;
+        } else {
+          expenseToUpdate.snoozeUntil = undefined;
         }
+        
+        newExpenses[expenseIndex] = expenseToUpdate;
 
         if (status === "Paid" && expenseToUpdate.recurrence === "Monthly") {
           const newDueDate = addMonths(expenseToUpdate.dueDate, 1);
@@ -179,7 +183,11 @@ function AuthAwareHome() {
   const upcomingExpenses = useMemo(() => {
     const now = new Date();
     return sortedExpenses.filter(
-      (e) => (e.status === "Due" || (e.status === "Snoozed" && e.snoozeUntil && e.snoozeUntil <= now))
+      (e) => {
+        const isDue = e.status === 'Due';
+        const isSnoozedAndReady = e.status === 'Snoozed' && e.snoozeUntil && e.snoozeUntil <= now;
+        return isDue || isSnoozedAndReady;
+      }
     );
   }, [sortedExpenses]);
 
@@ -218,6 +226,27 @@ function AuthAwareHome() {
       });
     }
   }, [upcomingExpenses, handleStatusChange, toast]);
+  
+  // Effect to automatically update snoozed items that have become due
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = new Date();
+      let changed = false;
+      const updatedExpenses = expenses.map(e => {
+        if (e.status === 'Snoozed' && e.snoozeUntil && e.snoozeUntil <= now) {
+          changed = true;
+          return { ...e, status: 'Due', snoozeUntil: undefined };
+        }
+        return e;
+      });
+      if (changed) {
+        setExpenses(updatedExpenses);
+      }
+    }, 1000 * 60); // Check every minute
+    
+    return () => clearInterval(interval);
+  }, [expenses]);
+
 
   return (
     <div className="flex flex-col h-full bg-gray-900 text-gray-50">
