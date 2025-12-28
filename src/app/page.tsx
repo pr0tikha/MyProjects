@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { Plus } from "lucide-react";
 
 import type { Expense } from "@/lib/types";
@@ -142,7 +142,7 @@ export default function Home() {
     return [...expenses].sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
   }, [expenses]);
 
-  const handleNotification = () => {
+  const showReminder = useCallback(() => {
     const nextDue = sortedExpenses.find(e => e.status === 'Due' && e.dueDate >= new Date());
     if (nextDue) {
       toast({
@@ -165,11 +165,21 @@ export default function Home() {
         description: "You have no upcoming due payments.",
       });
     }
-  };
+  }, [sortedExpenses, handleStatusChange, toast]);
+
+  useEffect(() => {
+    // Show a reminder when the app first loads
+    const timer = setTimeout(() => {
+      showReminder();
+    }, 1000); // Delay to allow the UI to settle
+
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Run only once on initial load
 
   return (
     <div className="flex flex-col h-full">
-      <Header onNotificationClick={handleNotification} />
+      <Header onNotificationClick={showReminder} />
       <div className="flex-grow p-4 space-y-4">
         <ExpenseList 
           expenses={sortedExpenses} 
@@ -207,4 +217,4 @@ export default function Home() {
       </Button>
     </div>
   );
-}
+ 
