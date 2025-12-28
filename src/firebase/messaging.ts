@@ -11,8 +11,7 @@ import {
 import type { FirebaseApp } from 'firebase/app';
 
 // This is the public key from your Firebase project settings.
-const VAPID_KEY =
-  'BA3ckzYn9atYSDjrxWHnImXnpDtb2SMJFcFPs397HxlTjS_1yjVWKYljtkw1zbAKOFJ2C05jd7Iznayj-vSKt90';
+const VAPID_KEY = process.env.NEXT_PUBLIC_VAPID_KEY;
 
 /**
  * Requests permission to show notifications and saves the token if granted.
@@ -25,6 +24,9 @@ export const requestNotificationPermission = async (
   firestore: Firestore,
   userId: string
 ) => {
+  if (!VAPID_KEY) {
+    throw new Error('VAPID key is not configured. Please set NEXT_PUBLIC_VAPID_KEY in your environment variables.');
+  }
   // Check for browser support first.
   if (!(await isSupported())) {
     console.warn('Firebase Messaging is not supported in this browser.');
