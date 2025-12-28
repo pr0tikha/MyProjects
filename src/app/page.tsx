@@ -192,11 +192,13 @@ function AuthAwareHome() {
   }, [upcomingExpenses, handleStatusChange, toast]);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      showReminder();
-    }, 1000);
-    return () => clearTimeout(timer);
-  }, [showReminder]);
+    if (upcomingExpenses.length > 0) {
+      const timer = setTimeout(() => {
+        showReminder();
+      }, 1000); // Show reminder shortly after the component mounts
+      return () => clearTimeout(timer);
+    }
+  }, [showReminder, upcomingExpenses]);
 
   return (
     <div className="flex flex-col h-full bg-gray-900 text-gray-50">
