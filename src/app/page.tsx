@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useCallback, useEffect } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Loader2 } from "lucide-react";
 
 import type { Expense } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useAuth, useUser } from "@/firebase";
+import { initiateAnonymousSignIn } from "@/firebase/non-blocking-login";
 
 const initialExpenses: Expense[] = [
   {
@@ -63,12 +65,14 @@ const initialExpenses: Expense[] = [
   }
 ];
 
-export default function Home() {
+function AuthAwareHome() {
   const { toast } = useToast();
   const [expenses, setExpenses] = useState<Expense[]>(initialExpenses);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
-  const [deletingExpenseId, setDeletingExpenseId] = useState<string | null>(null);
+  const [deletingExpenseId, setDeletingExpenseId] = useState<string | null>(
+    null
+  );
 
   const handleAddClick = () => {
     setEditingExpense(null);
@@ -79,14 +83,16 @@ export default function Home() {
     setEditingExpense(expense);
     setIsSheetOpen(true);
   };
-  
+
   const handleDeleteClick = (id: string) => {
     setDeletingExpenseId(id);
   };
 
   const confirmDelete = () => {
     if (deletingExpenseId) {
-      setExpenses((prev) => prev.filter((exp) => exp.id !== deletingExpenseId));
+      setExpenses((prev) =>
+        prev.filter((exp) => exp.id !== deletingExpenseId)
+      );
       setDeletingExpenseId(null);
       toast({
         title: "Expense Deleted",
@@ -100,7 +106,9 @@ export default function Home() {
       // Update existing expense
       const updatedExpense: Expense = { ...editingExpense, ...expenseData };
       setExpenses((prev) =>
-        prev.map((exp) => (exp.id === editingExpense.id ? updatedExpense : exp))
+        prev.map((exp) =>
+          exp.id === editingExpense.id ? updatedExpense : exp
+        )
       );
       toast({
         title: "Expense Updated",
@@ -137,31 +145,43 @@ export default function Home() {
     },
     [toast]
   );
-  
+
   const sortedExpenses = useMemo(() => {
-    return [...expenses].sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
+    return [...expenses].sort(
+      (a, b) => a.dueDate.getTime() - b.dueDate.getTime()
+    );
   }, [expenses]);
-  
+
   const upcomingExpenses = useMemo(() => {
-    return sortedExpenses.filter(e => e.status === 'Due' || e.status === 'Snoozed');
+    return sortedExpenses.filter(
+      (e) => e.status === "Due" || e.status === "Snoozed"
+    );
   }, [sortedExpenses]);
 
   const showReminder = useCallback(() => {
-    const nextDue = upcomingExpenses.find(e => e.dueDate >= new Date());
+    const nextDue = upcomingExpenses.find((e) => e.dueDate >= new Date());
     if (nextDue) {
       toast({
         title: `Reminder: ${nextDue.title}`,
         description: `Your payment of $${nextDue.amount} is due soon.`,
         action: (
           <div className="flex gap-2">
-            <Button variant="secondary" size="sm" onClick={() => handleStatusChange(nextDue.id, "Snoozed")}>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => handleStatusChange(nextDue.id, "Snoozed")}
+            >
               Snooze
             </Button>
-            <Button variant="default" size="sm" onClick={() => handleStatusChange(nextDue.id, "Paid")}>
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => handleStatusChange(nextDue.id, "Paid")}
+            >
               Mark Paid
             </Button>
           </div>
-        )
+        ),
       });
     } else {
       toast({
@@ -174,7 +194,7 @@ export default function Home() {
   useEffect(() => {
     const timer = setTimeout(() => {
       showReminder();
-    }, 1000); 
+    }, 1000);
     return () => clearTimeout(timer);
   }, [showReminder]);
 
@@ -182,11 +202,11 @@ export default function Home() {
     <div className="flex flex-col h-full bg-gray-900 text-gray-50">
       <Header onNotificationClick={showReminder} expenses={upcomingExpenses} />
       <div className="flex-grow p-4 space-y-4">
-        <ExpenseList 
-          expenses={sortedExpenses} 
-          onEdit={handleEditClick} 
-          onDelete={handleDeleteClick} 
-          onStatusChange={handleStatusChange} 
+        <ExpenseList
+          expenses={sortedExpenses}
+          onEdit={handleEditClick}
+          onDelete={handleDeleteClick}
+          onStatusChange={handleStatusChange}
         />
       </div>
       <ExpenseForm
@@ -195,17 +215,28 @@ export default function Home() {
         onSave={handleSaveExpense}
         expense={editingExpense}
       />
-      <AlertDialog open={!!deletingExpenseId} onOpenChange={() => setDeletingExpenseId(null)}>
+      <AlertDialog
+        open={!!deletingExpenseId}
+        onOpenChange={() => setDeletingExpenseId(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete this expense from your log.
+              This action cannot be undone. This will permanently delete this
+              expense from your log.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setDeletingExpenseId(null)}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+            <AlertDialogCancel onClick={() => setDeletingExpenseId(null)}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -218,4 +249,29 @@ export default function Home() {
       </Button>
     </div>
   );
+}
+
+
+export default function Home() {
+  const { user, isUserLoading } = useUser();
+  const auth = useAuth();
+
+  useEffect(() => {
+    // If there's no user and we're not in a loading state,
+    // it means the initial check is complete. We can now
+    // attempt a sign-in.
+    if (!user && !isUserLoading) {
+      initiateAnonymousSignIn(auth);
+    }
+  }, [user, isUserLoading, auth]);
+
+  if (isUserLoading || !user) {
+    return (
+      <div className="flex h-full w-full items-center justify-center bg-gray-900">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  return <AuthAwareHome />;
 }
