@@ -107,7 +107,7 @@ export default function ExpenseForm({
     } else {
       form.reset({
         title: "",
-        amount: undefined,
+        amount: "" as any,
         dueDate: new Date(),
         recurrence: "Monthly",
         category: "Utilities",
