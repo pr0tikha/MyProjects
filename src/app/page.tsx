@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { Plus, Loader2 } from "lucide-react";
+import { addMonths } from "date-fns";
 
 import type { Expense } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -49,7 +50,7 @@ const initialExpenses: Expense[] = [
         amount: 60,
         dueDate: new Date(new Date().setDate(new Date().getDate() + 10)),
         category: 'Utilities',
-        recurrence: 'Monthly',
+        recurrence: 'One-off',
         reminderTime: '18:00',
         status: 'Paid',
     }
@@ -117,21 +118,42 @@ function AuthAwareHome() {
 
   const handleStatusChange = useCallback(
     async (id: string, status: "Paid" | "Snoozed" | "Due") => {
-      let updatedExpense: Expense | undefined;
-      setExpenses(prev => prev.map(e => {
-        if (e.id === id) {
-          updatedExpense = { ...e, status };
-          if (status === "Snoozed") {
-            const snoozeUntil = new Date();
-            snoozeUntil.setHours(snoozeUntil.getHours() + 1);
-            updatedExpense.snoozeUntil = snoozeUntil;
-          }
-          return updatedExpense;
-        }
-        return e;
-      }));
+      let expenseToUpdate: Expense | undefined;
+      setExpenses(prev => {
+        const newExpenses = [...prev];
+        const expenseIndex = newExpenses.findIndex(e => e.id === id);
+        
+        if (expenseIndex === -1) return prev;
 
-      if (updatedExpense) {
+        expenseToUpdate = newExpenses[expenseIndex];
+        expenseToUpdate.status = status;
+
+        if (status === "Snoozed") {
+          const snoozeUntil = new Date();
+          snoozeUntil.setHours(snoozeUntil.getHours() + 1);
+          expenseToUpdate.snoozeUntil = snoozeUntil;
+        }
+
+        if (status === "Paid" && expenseToUpdate.recurrence === "Monthly") {
+          const newDueDate = addMonths(expenseToUpdate.dueDate, 1);
+          const newRecurringExpense: Expense = {
+            ...expenseToUpdate,
+            id: Date.now().toString(),
+            dueDate: newDueDate,
+            status: "Due",
+            snoozeUntil: undefined,
+          };
+          newExpenses.push(newRecurringExpense);
+          toast({
+            title: "Next Bill Scheduled",
+            description: `Next payment for "${newRecurringExpense.title}" is due on ${newDueDate.toLocaleDateString()}.`,
+          });
+        }
+        
+        return newExpenses;
+      });
+
+      if (expenseToUpdate) {
         if (status === "Snoozed") {
           toast({
             title: "Reminder Snoozed",
