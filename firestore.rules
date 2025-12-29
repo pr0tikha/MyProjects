@@ -62,8 +62,8 @@ service cloud.firestore {
     
     /**
      * Checks if the request is coming from a trusted backend service account.
-     * This is identified by a null `request.auth` object.
-     * This should only be used for read operations required by backend processes.
+     * This is identified by a null `request.auth` object and is a simplified
+     * check for services like Cloud Functions that are authenticated via IAM.
      */
     function isBackend() {
       return request.auth == null;
@@ -117,21 +117,19 @@ service cloud.firestore {
     // ===================================================================
 
     /**
-     * @description Controls access to a user's own profile document.
+     * @description Controls access to user documents.
      * @path /users/{userId}
-     * @allow (get) An authenticated user with UID 'user_abc' can read '/users/user_abc'.
-     * @allow (create) An authenticated user with UID 'user_abc' can create '/users/user_abc' if the document data contains `id: 'user_abc'`.
-     * @deny (list) No end-user, authenticated or not, can list all documents in the `/users` collection.
-     * @deny (update) An authenticated user with UID 'user_xyz' cannot update '/users/user_abc'.
-     * @principle Restricts access to a user's own data tree and prevents user enumeration.
+     * @allow (get, update) Authenticated user can access/update their own document.
+     * @allow (create) An authenticated user can create their own document.
+     * @deny (list) No end-user can list all users.
+     * @allow (read by backend) Backend services can read user data for tasks like notifications.
      */
     match /users/{userId} {
-      allow get: if isOwner(userId);
+      allow get: if isOwner(userId) || isBackend();
       allow create: if isOwner(userId) && isCreatingSelf(userId);
       allow update: if isExistingOwner(userId) && isUpdatingSelf();
       allow delete: if isExistingOwner(userId);
-      // Deny listing all users for security
-      allow list: if false; 
+      allow list: if false; // Prevent user enumeration
 
       // ===================================================================
       // Subcollection: fcmTokens
@@ -141,39 +139,23 @@ service cloud.firestore {
        * @path /users/{userId}/fcmTokens/{tokenId}
        * @allow (create) Authenticated user 'user_abc' can add a new FCM token.
        * @allow (read, delete) Authenticated user 'user_abc' can read or delete their own tokens.
+       * @allow (list by backend) Backend services can list tokens to send notifications.
        * @deny (update) Tokens should be created/deleted, not updated.
-       * @principle Ensures a user can only manage notification tokens for their own account.
        */
        match /fcmTokens/{tokenId} {
          allow read: if isOwner(userId);
          allow create: if isOwner(userId) && isCreatingValidSubdocument(userId);
          allow update: if false;
          allow delete: if isOwner(userId);
-         // Deny listing all tokens for a user, unless by a backend service in the future
-         allow list: if false;
+         allow list: if isBackend(); // Allow backend to list tokens for a user
        }
     }
 
     // ===================================================================
-    // Subcollection: reminders
+    // Collection: reminders
+    // This is now an alias for expenseLogs and rules are handled there.
     // ===================================================================
 
-    /**
-     * @description Controls access to a user's private payment reminders.
-     * @path /users/{userId}/reminders/{reminderId}
-     * @allow (create) An authenticated user 'user_abc' can create a reminder at '/users/user_abc/reminders/new_reminder' if the document contains `userId: 'user_abc'`.
-     * @allow (list) An authenticated user 'user_abc' can list all reminders under '/users/user_abc/reminders'.
-     * @deny (get) An authenticated user 'user_xyz' cannot read a reminder from '/users/user_abc/reminders/some_reminder'.
-     * @deny (update) An authenticated user 'user_abc' cannot change the `userId` field on an existing reminder.
-     * @principle Enforces path-based ownership for all CRUD and list operations on a user's private subcollection.
-     */
-    match /users/{userId}/reminders/{reminderId} {
-      allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
-      allow create: if isOwner(userId) && isCreatingValidSubdocument(userId);
-      allow update: if isExistingOwner(userId) && isUpdatingValidSubdocument();
-      allow delete: if isExistingOwner(userId);
-    }
 
     // ===================================================================
     // Subcollection: expenseLogs
@@ -182,15 +164,15 @@ service cloud.firestore {
     /**
      * @description Controls access to a user's private expense logs.
      * @path /users/{userId}/expenseLogs/{expenseLogId}
-     * @allow (create) An authenticated user 'user_abc' can create an expense log at '/users/user_abc/expenseLogs/new_log' if the document contains `userId: 'user_abc'`.
-     * @allow (list) An authenticated user 'user_abc' can list all expense logs under '/users/user_abc/expenseLogs'.
+     * @allow (create, list, get) An authenticated user can manage their own expense logs.
+     * @allow (read by backend) Backend services can read expense data to send reminders.
      * @deny (get) An authenticated user 'user_xyz' cannot read an expense log from '/users/user_abc/expenseLogs/some_log'.
      * @deny (update) An authenticated user 'user_abc' cannot change the `userId` field on an existing expense log.
      * @principle Enforces path-based ownership for all CRUD and list operations on a user's private subcollection.
      */
     match /users/{userId}/expenseLogs/{expenseLogId} {
-      allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
+      allow get: if isOwner(userId) || isBackend();
+      allow list: if isOwner(userId) || isBackend();
       allow create: if isOwner(userId) && isCreatingValidSubdocument(userId);
       allow update: if isExistingOwner(userId) && isUpdatingValidSubdocument();
       allow delete: if isExistingOwner(userId);

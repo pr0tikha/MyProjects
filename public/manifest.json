@@ -3,8 +3,8 @@
   "short_name": "PayMind",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#111827",
-  "theme_color": "#1D9BF0",
+  "background_color": "#20242D",
+  "theme_color": "#7984D7",
   "description": "A friendly payment reminder app.",
   "icons": [
     {
@@ -47,5 +47,6 @@
       "sizes": "512x512",
       "type": "image/png"
     }
-  ]
+  ],
+  "gcm_sender_id": "103953800507"
 }

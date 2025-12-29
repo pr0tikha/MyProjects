@@ -2,90 +2,59 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import type { Expense } from '@/lib/types';
+import { getMessaging, getToken, onMessage } from 'firebase/messaging';
+import { useFirestore, useUser } from '@/firebase';
+import { doc, setDoc } from 'firebase/firestore';
+import { firebaseConfig } from '@/firebase/config';
 
-type NotificationAction = 'snooze' | 'mark-as-paid';
-
-function requestNotificationPermission() {
-  if (!('Notification' in window)) {
-    console.warn("This browser does not support desktop notification");
+async function requestNotificationPermission(userId: string, firestore: any) {
+  if (!('Notification' in window) || !('serviceWorker' in navigator)) {
+    console.warn("This browser does not support desktop notification or service workers.");
     return;
   }
-  Notification.requestPermission();
+
+  const permission = await Notification.requestPermission();
+  if (permission === 'granted') {
+    const messaging = getMessaging();
+    try {
+      const currentToken = await getToken(messaging, { vapidKey: firebaseConfig.apiKey });
+      if (currentToken) {
+        console.log('FCM Token:', currentToken);
+        const tokenRef = doc(firestore, `users/${userId}/fcmTokens/${currentToken}`);
+        await setDoc(tokenRef, {
+          token: currentToken,
+          userId: userId,
+          createdAt: new Date().toISOString(),
+        });
+      } else {
+        console.log('No registration token available. Request permission to generate one.');
+      }
+    } catch (err) {
+      console.error('An error occurred while retrieving token. ', err);
+    }
+  }
 }
 
-export function useClientSideNotifications(
-  expenses: Expense[],
-  onAction: (id: string, action: NotificationAction) => void
-) {
-  const onActionRef = useRef(onAction);
-  onActionRef.current = onAction;
-
-  // Request permission on mount
-  useEffect(() => {
-    requestNotificationPermission();
-  }, []);
+export function useClientSideNotifications() {
+  const { user } = useUser();
+  const firestore = useFirestore();
 
   useEffect(() => {
-    const notifiedExpenses = new Set<string>();
+    if (user && firestore) {
+      requestNotificationPermission(user.uid, firestore);
+    }
+  }, [user, firestore]);
 
-    const checkReminders = () => {
-      if (Notification.permission !== 'granted') {
-        return;
-      }
-      
-      const now = new Date();
-      expenses.forEach(expense => {
-        if (expense.status !== 'Due' || notifiedExpenses.has(expense.id)) {
-          return;
-        }
-
-        const [hours, minutes] = expense.reminderTime.split(':').map(Number);
-        const reminderDateTime = new Date(expense.dueDate);
-        reminderDateTime.setHours(hours, minutes, 0, 0);
-
-        // Check if the reminder time is in the past but within the last minute
-        const timeDiff = now.getTime() - reminderDateTime.getTime();
-        if (timeDiff > 0 && timeDiff < 60000) {
-          
-          const notification = new Notification(`Payment Reminder: ${expense.title}`, {
-            body: `Your payment of $${expense.amount.toFixed(2)} is due today.`,
-            requireInteraction: true,
-            icon: '/icons/icon-192x192.png',
-            actions: [
-              { action: 'snooze', title: 'Snooze (1 Hour)' },
-              { action: 'mark-as-paid', title: 'Mark as Paid' },
-            ],
-            data: { expenseId: expense.id }
-          });
-          
-          notification.onclick = () => {
-            window.focus();
-          };
-
-          notification.onclose = () => {
-             // Handle case where user just closes notification
-          };
-          
-          notifiedExpenses.add(expense.id);
-        }
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      const messaging = getMessaging();
+      const unsubscribe = onMessage(messaging, (payload) => {
+        console.log('Message received. ', payload);
+        // We can handle foreground notifications here if needed,
+        // but the service worker handles background notifications.
       });
-    };
 
-    const interval = setInterval(checkReminders, 60 * 1000); // Check every minute
-
-    // Handle service worker messages for notification actions
-    const handleMessage = (event: MessageEvent) => {
-        if (event.data?.type === 'NOTIFICATION_ACTION') {
-            const { expenseId, action } = event.data.payload;
-            onActionRef.current(expenseId, action as NotificationAction);
-        }
-    };
-    navigator.serviceWorker.addEventListener('message', handleMessage);
-
-    return () => {
-      clearInterval(interval);
-      navigator.serviceWorker.removeEventListener('message', handleMessage);
-    };
-  }, [expenses]);
+      return () => unsubscribe();
+    }
+  }, []);
 }

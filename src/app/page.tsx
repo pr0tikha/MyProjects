@@ -24,19 +24,21 @@ import { useAuth, useUser, useFirestore, useMemoFirebase } from "@/firebase";
 import { initiateAnonymousSignIn } from "@/firebase/non-blocking-login";
 import { useClientSideNotifications } from "@/hooks/use-client-side-notifications";
 import { useCollection } from "@/firebase/firestore/use-collection";
-import { collection, doc, setDoc, addDoc, deleteDoc, Timestamp } from "firebase/firestore";
+import { collection, doc, setDoc, addDoc, deleteDoc, Timestamp, updateDoc } from "firebase/firestore";
 
 function AuthAwareHome() {
   const { toast } = useToast();
   const { user } = useUser();
   const firestore = useFirestore();
 
+  useClientSideNotifications();
+
   const expensesQuery = useMemoFirebase(() => {
     if (!user) return null;
     return collection(firestore, `users/${user.uid}/expenseLogs`);
   }, [user, firestore]);
   
-  const { data: rawExpenses, isLoading: isLoadingExpenses } = useCollection<Omit<Expense, 'dueDate' | 'snoozeUntil'> & { dueDate: Timestamp, snoozeUntil?: Timestamp }>(expensesQuery);
+  const { data: rawExpenses, isLoading: isLoadingExpenses } = useCollection<Omit<Expense, 'dueDate' | 'snoozeUntil' | 'reminderTime'> & { dueDate: Timestamp, snoozeUntil?: Timestamp, reminderTime: string }>(expensesQuery);
 
   const expenses: Expense[] = useMemo(() => {
     if (!rawExpenses) return [];
@@ -60,21 +62,18 @@ function AuthAwareHome() {
       if (expenseIndex === -1) return;
       
       const expenseToUpdate = { ...expenses[expenseIndex] };
-      expenseToUpdate.status = status;
-
       const expenseDocRef = doc(firestore, `users/${user.uid}/expenseLogs/${id}`);
 
       if (status === "Snoozed") {
         const snoozeUntil = new Date();
         snoozeUntil.setHours(snoozeUntil.getHours() + 1);
-        expenseToUpdate.snoozeUntil = snoozeUntil;
-        await setDoc(expenseDocRef, { status: "Snoozed", snoozeUntil: Timestamp.fromDate(snoozeUntil) }, { merge: true });
+        await updateDoc(expenseDocRef, { status: "Snoozed", snoozeUntil: Timestamp.fromDate(snoozeUntil) });
         toast({
           title: "Reminder Snoozed",
           description: "We'll remind you again in an hour.",
         });
       } else {
-        await setDoc(expenseDocRef, { status, snoozeUntil: undefined }, { merge: true });
+        await updateDoc(expenseDocRef, { status, snoozeUntil: undefined });
          if (status === "Paid") {
           toast({
             title: "Marked as Paid!",
@@ -91,13 +90,12 @@ function AuthAwareHome() {
           status: "Due",
           snoozeUntil: undefined,
         };
-        // Add the new recurring expense to Firestore
         const newDocPayload = {
           ...newRecurringExpense,
           userId: user.uid,
           dueDate: Timestamp.fromDate(newDueDate),
         };
-        delete (newDocPayload as any).id; // Firestore generates ID
+        delete (newDocPayload as any).id;
         await addDoc(collection(firestore, `users/${user.uid}/expenseLogs`), newDocPayload);
         
         toast({
@@ -108,14 +106,6 @@ function AuthAwareHome() {
     },
     [user, firestore, expenses, toast]
   );
-
-  useClientSideNotifications(expenses, (id, action) => {
-    if (action === 'snooze') {
-      handleStatusChange(id, 'Snoozed');
-    } else if (action === 'mark-as-paid') {
-      handleStatusChange(id, 'Paid');
-    }
-  });
 
   const handleAddClick = () => {
     setEditingExpense(null);
@@ -147,7 +137,6 @@ function AuthAwareHome() {
     if (!user) return;
     
     if (editingExpense) {
-      // Update existing expense in Firestore
       const expenseDocRef = doc(firestore, `users/${user.uid}/expenseLogs/${editingExpense.id}`);
       const updatedData = {
         ...expenseData,
@@ -159,7 +148,6 @@ function AuthAwareHome() {
         description: `"${expenseData.title}" has been updated.`,
       });
     } else {
-      // Add new expense to Firestore
       const newExpensePayload = {
         ...expenseData,
         userId: user.uid,
@@ -193,7 +181,6 @@ function AuthAwareHome() {
     );
   }, [sortedExpenses]);
   
-  // Effect to automatically update snoozed items that have become due
   useEffect(() => {
     const interval = setInterval(() => {
        if (!user) return;
@@ -201,15 +188,15 @@ function AuthAwareHome() {
       expenses.forEach(e => {
         if (e.status === 'Snoozed' && e.snoozeUntil && e.snoozeUntil <= now) {
           const expenseDocRef = doc(firestore, `users/${user.uid}/expenseLogs/${e.id}`);
-          setDoc(expenseDocRef, { status: 'Due', snoozeUntil: undefined }, { merge: true });
+          updateDoc(expenseDocRef, { status: 'Due', snoozeUntil: undefined });
         }
       });
-    }, 1000 * 60); // Check every minute
+    }, 1000 * 60);
     
     return () => clearInterval(interval);
   }, [expenses, user, firestore]);
 
-  if (isLoadingExpenses) {
+  if (isUserLoading) {
      return (
       <div className="flex h-full w-full items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -221,7 +208,7 @@ function AuthAwareHome() {
   return (
     <div className="flex flex-col h-full bg-background text-foreground">
       <Header expenses={upcomingExpenses} />
-      <div className="flex-grow p-4 space-y-4">
+      <div className="flex-grow p-4 space-y-4 overflow-y-auto">
         <ExpenseList
           expenses={sortedExpenses}
           onEdit={handleEditClick}
@@ -282,11 +269,11 @@ export default function Home() {
     }
   }, [user, isUserLoading, auth]);
 
-  // Create user document if it doesn't exist
   useEffect(() => {
     if (user) {
       const userDocRef = doc(firestore, "users", user.uid);
-      setDoc(userDocRef, { id: user.uid, email: user.email || "anonymous" }, { merge: true });
+      // Set the wakeUpTime if it doesn't exist.
+      setDoc(userDocRef, { id: user.uid, email: user.email || "anonymous", wakeUpTime: "07:00:00" }, { merge: true });
     }
   }, [user, firestore]);
 
