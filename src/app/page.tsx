@@ -20,48 +20,33 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useAuth, useUser } from "@/firebase";
+import { useAuth, useUser, useFirestore, useMemoFirebase } from "@/firebase";
 import { initiateAnonymousSignIn } from "@/firebase/non-blocking-login";
 import { useClientSideNotifications } from "@/hooks/use-client-side-notifications";
-
-
-const initialExpenses: Expense[] = [
-    {
-        id: '1',
-        title: 'Netflix Subscription',
-        amount: 15.99,
-        dueDate: new Date(new Date().setDate(new Date().getDate() + 5)),
-        category: 'Subscriptions',
-        recurrence: 'Monthly',
-        reminderTime: '10:00',
-        status: 'Due',
-    },
-    {
-        id: '2',
-        title: 'Gym Membership',
-        amount: 40,
-        dueDate: new Date(new Date().setDate(new Date().getDate() - 2)),
-        category: 'Health',
-        recurrence: 'Monthly',
-        reminderTime: '08:00',
-        status: 'Due',
-    },
-    {
-        id: '3',
-        title: 'Internet Bill',
-        amount: 60,
-        dueDate: new Date(new Date().setDate(new Date().getDate() + 10)),
-        category: 'Utilities',
-        recurrence: 'One-off',
-        reminderTime: '18:00',
-        status: 'Paid',
-    }
-]
+import { useCollection } from "@/firebase/firestore/use-collection";
+import { collection, doc, setDoc, addDoc, deleteDoc, Timestamp } from "firebase/firestore";
 
 function AuthAwareHome() {
   const { toast } = useToast();
+  const { user } = useUser();
+  const firestore = useFirestore();
+
+  const expensesQuery = useMemoFirebase(() => {
+    if (!user) return null;
+    return collection(firestore, `users/${user.uid}/expenseLogs`);
+  }, [user, firestore]);
   
-  const [expenses, setExpenses] = useState<Expense[]>(initialExpenses);
+  const { data: rawExpenses, isLoading: isLoadingExpenses } = useCollection<Omit<Expense, 'dueDate' | 'snoozeUntil'> & { dueDate: Timestamp, snoozeUntil?: Timestamp }>(expensesQuery);
+
+  const expenses: Expense[] = useMemo(() => {
+    if (!rawExpenses) return [];
+    return rawExpenses.map(e => ({
+      ...e,
+      dueDate: e.dueDate.toDate(),
+      snoozeUntil: e.snoozeUntil ? e.snoozeUntil.toDate() : undefined,
+    }));
+  }, [rawExpenses]);
+
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [deletingExpenseId, setDeletingExpenseId] = useState<string | null>(
@@ -70,60 +55,59 @@ function AuthAwareHome() {
 
   const handleStatusChange = useCallback(
     async (id: string, status: "Paid" | "Snoozed" | "Due") => {
-      let expenseToUpdate: Expense | undefined;
-      setExpenses(prev => {
-        const newExpenses = [...prev];
-        const expenseIndex = newExpenses.findIndex(e => e.id === id);
-        
-        if (expenseIndex === -1) return prev;
+      if (!user) return;
+      const expenseIndex = expenses.findIndex(e => e.id === id);
+      if (expenseIndex === -1) return;
+      
+      const expenseToUpdate = { ...expenses[expenseIndex] };
+      expenseToUpdate.status = status;
 
-        expenseToUpdate = { ...newExpenses[expenseIndex] };
-        expenseToUpdate.status = status;
+      const expenseDocRef = doc(firestore, `users/${user.uid}/expenseLogs/${id}`);
 
-        if (status === "Snoozed") {
-          const snoozeUntil = new Date();
-          snoozeUntil.setHours(snoozeUntil.getHours() + 1);
-          expenseToUpdate.snoozeUntil = snoozeUntil;
-        } else {
-          expenseToUpdate.snoozeUntil = undefined;
-        }
-        
-        newExpenses[expenseIndex] = expenseToUpdate;
-
-        if (status === "Paid" && expenseToUpdate.recurrence === "Monthly") {
-          const newDueDate = addMonths(expenseToUpdate.dueDate, 1);
-          const newRecurringExpense: Expense = {
-            ...expenseToUpdate,
-            id: Date.now().toString(),
-            dueDate: newDueDate,
-            status: "Due",
-            snoozeUntil: undefined,
-          };
-          newExpenses.push(newRecurringExpense);
-          toast({
-            title: "Next Bill Scheduled",
-            description: `Next payment for "${newRecurringExpense.title}" is due on ${newDueDate.toLocaleDateString()}.`,
-          });
-        }
-        
-        return newExpenses;
-      });
-
-      if (expenseToUpdate) {
-        if (status === "Snoozed") {
-          toast({
-            title: "Reminder Snoozed",
-            description: "We'll remind you again in an hour.",
-          });
-        } else if (status === "Paid") {
+      if (status === "Snoozed") {
+        const snoozeUntil = new Date();
+        snoozeUntil.setHours(snoozeUntil.getHours() + 1);
+        expenseToUpdate.snoozeUntil = snoozeUntil;
+        await setDoc(expenseDocRef, { ...expenseToUpdate, snoozeUntil: Timestamp.fromDate(snoozeUntil) }, { merge: true });
+        toast({
+          title: "Reminder Snoozed",
+          description: "We'll remind you again in an hour.",
+        });
+      } else {
+        expenseToUpdate.snoozeUntil = undefined;
+        await setDoc(expenseDocRef, { ...expenseToUpdate, snoozeUntil: undefined }, { merge: true });
+         if (status === "Paid") {
           toast({
             title: "Marked as Paid!",
             description: "Great job staying on top of your finances.",
           });
         }
       }
+
+      if (status === "Paid" && expenseToUpdate.recurrence === "Monthly") {
+        const newDueDate = addMonths(expenseToUpdate.dueDate, 1);
+        const newRecurringExpense: Omit<Expense, 'id'> = {
+          ...expenseToUpdate,
+          dueDate: newDueDate,
+          status: "Due",
+          snoozeUntil: undefined,
+        };
+        // Add the new recurring expense to Firestore
+        const newDocPayload = {
+          ...newRecurringExpense,
+          userId: user.uid,
+          dueDate: Timestamp.fromDate(newDueDate),
+        };
+        delete (newDocPayload as any).id; // Firestore generates ID
+        await addDoc(collection(firestore, `users/${user.uid}/expenseLogs`), newDocPayload);
+        
+        toast({
+          title: "Next Bill Scheduled",
+          description: `Next payment for "${newRecurringExpense.title}" is due on ${newDueDate.toLocaleDateString()}.`,
+        });
+      }
     },
-    [toast]
+    [user, firestore, expenses, toast]
   );
 
   useClientSideNotifications(expenses, (id, action) => {
@@ -133,7 +117,6 @@ function AuthAwareHome() {
       handleStatusChange(id, 'Paid');
     }
   });
-
 
   const handleAddClick = () => {
     setEditingExpense(null);
@@ -150,8 +133,9 @@ function AuthAwareHome() {
   };
 
   const confirmDelete = async () => {
-    if (deletingExpenseId) {
-      setExpenses(prev => prev.filter(e => e.id !== deletingExpenseId));
+    if (deletingExpenseId && user) {
+      const expenseDocRef = doc(firestore, `users/${user.uid}/expenseLogs/${deletingExpenseId}`);
+      await deleteDoc(expenseDocRef);
       setDeletingExpenseId(null);
       toast({
         title: "Expense Deleted",
@@ -161,21 +145,29 @@ function AuthAwareHome() {
   };
 
   const handleSaveExpense = async (expenseData: Omit<Expense, "id" | "status">) => {
+    if (!user) return;
+    
     if (editingExpense) {
-      // Update existing expense
-      setExpenses(prev => prev.map(e => e.id === editingExpense.id ? { ...editingExpense, ...expenseData } : e));
+      // Update existing expense in Firestore
+      const expenseDocRef = doc(firestore, `users/${user.uid}/expenseLogs/${editingExpense.id}`);
+      const updatedData = {
+        ...expenseData,
+        dueDate: Timestamp.fromDate(expenseData.dueDate),
+      };
+      await setDoc(expenseDocRef, updatedData, { merge: true });
       toast({
         title: "Expense Updated",
         description: `"${expenseData.title}" has been updated.`,
       });
     } else {
-      // Add new expense
-      const newExpense: Expense = {
-          ...expenseData,
-          id: Date.now().toString(),
-          status: 'Due',
+      // Add new expense to Firestore
+      const newExpensePayload = {
+        ...expenseData,
+        userId: user.uid,
+        status: 'Due' as const,
+        dueDate: Timestamp.fromDate(expenseData.dueDate),
       };
-      setExpenses(prev => [...prev, newExpense]);
+      await addDoc(collection(firestore, `users/${user.uid}/expenseLogs`), newExpensePayload);
       toast({
         title: "Expense Added",
         description: `"${expenseData.title}" has been added to your log.`,
@@ -205,26 +197,30 @@ function AuthAwareHome() {
   // Effect to automatically update snoozed items that have become due
   useEffect(() => {
     const interval = setInterval(() => {
+       if (!user) return;
       const now = new Date();
-      let changed = false;
-      const updatedExpenses = expenses.map(e => {
+      expenses.forEach(e => {
         if (e.status === 'Snoozed' && e.snoozeUntil && e.snoozeUntil <= now) {
-          changed = true;
-          return { ...e, status: 'Due', snoozeUntil: undefined };
+          const expenseDocRef = doc(firestore, `users/${user.uid}/expenseLogs/${e.id}`);
+          setDoc(expenseDocRef, { status: 'Due', snoozeUntil: undefined }, { merge: true });
         }
-        return e;
       });
-      if (changed) {
-        setExpenses(updatedExpenses);
-      }
     }, 1000 * 60); // Check every minute
     
     return () => clearInterval(interval);
-  }, [expenses]);
+  }, [expenses, user, firestore]);
 
+  if (isLoadingExpenses) {
+     return (
+      <div className="flex h-full w-full items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="ml-2">Loading expenses...</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex flex-col h-full bg-gray-900 text-gray-50">
+    <div className="flex flex-col h-full bg-background text-foreground">
       <Header expenses={upcomingExpenses} />
       <div className="flex-grow p-4 space-y-4">
         <ExpenseList
@@ -276,10 +272,10 @@ function AuthAwareHome() {
   );
 }
 
-
 export default function Home() {
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
+  const firestore = useFirestore();
 
   useEffect(() => {
     if (!user && !isUserLoading) {
@@ -287,9 +283,17 @@ export default function Home() {
     }
   }, [user, isUserLoading, auth]);
 
+  // Create user document if it doesn't exist
+  useEffect(() => {
+    if (user) {
+      const userDocRef = doc(firestore, "users", user.uid);
+      setDoc(userDocRef, { id: user.uid, email: user.email || "anonymous" }, { merge: true });
+    }
+  }, [user, firestore]);
+
   if (isUserLoading) {
     return (
-      <div className="flex h-full w-full items-center justify-center bg-gray-900">
+      <div className="flex h-full w-full items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );

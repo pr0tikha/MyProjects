@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { PT_Sans } from "next/font/google";
 import "./globals.css";
 import "react-day-picker/dist/style.css";
 import { cn } from "@/lib/utils";
 import { Toaster } from "@/components/ui/toaster";
 import { FirebaseClientProvider } from "@/firebase";
 
-const inter = Inter({
+const ptSans = PT_Sans({
   subsets: ["latin"],
+  weight: ["400", "700"],
   variable: "--font-sans",
 });
 
@@ -28,22 +29,12 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning className="dark">
       <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link
-          rel="preconnect"
-          href="https://fonts.gstatic.com"
-          crossOrigin="anonymous"
-        />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
-          rel="stylesheet"
-        />
-        <meta name="theme-color" content="#1D9BF0" />
+        <meta name="theme-color" content="#7984D7" />
       </head>
       <body
         className={cn(
-          "font-body bg-gray-900 flex items-center justify-center min-h-screen",
-          inter.variable
+          "font-body bg-background flex items-center justify-center min-h-screen",
+          ptSans.variable
         )}
       >
         <FirebaseClientProvider>
