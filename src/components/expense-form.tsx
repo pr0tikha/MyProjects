@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -41,6 +42,7 @@ import { getSuggestedTime } from "@/app/actions";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { categoryIcons } from "./icons";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible";
+import { Separator } from "./ui/separator";
 
 const formSchema = z.object({
   title: z.string().min(2, "Title must be at least 2 characters."),
@@ -313,6 +315,14 @@ export default function ExpenseForm({
              </div>
           </form>
         </Form>
+        <div className="mt-auto pt-4">
+            <Separator />
+            <div className="pt-4 text-center text-xs text-muted-foreground">
+                <Link href="/privacy.html" target="_blank" className="underline">
+                    Privacy Policy
+                </Link>
+            </div>
+        </div>
         <SheetFooter className="mt-4">
           <SheetClose asChild>
             <Button type="button" variant="outline">
