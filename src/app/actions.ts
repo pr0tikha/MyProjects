@@ -7,6 +7,8 @@ export async function getSuggestedTime(input: DetermineReminderTimeInput): Promi
     return { success: true, data: result };
   } catch (error) {
     console.error("Error in getSuggestedTime action:", error);
-    return { success: false, error: "Failed to get a suggestion from AI." };
+    // This is a free-tier app, so we should not expose AI errors.
+    // Return a generic message.
+    return { success: false, error: "AI suggestion is not available at the moment." };
   }
 }
