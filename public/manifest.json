@@ -1,12 +1,11 @@
 {
   "name": "PayMind",
   "short_name": "PayMind",
-  "description": "A friendly payment reminder app.",
   "start_url": "/",
   "display": "standalone",
-  "orientation": "portrait",
   "background_color": "#111827",
   "theme_color": "#1D9BF0",
+  "description": "A friendly payment reminder app.",
   "icons": [
     {
       "src": "/icons/icon-72x72.png",

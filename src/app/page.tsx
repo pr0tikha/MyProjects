@@ -22,6 +22,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useAuth, useUser } from "@/firebase";
 import { initiateAnonymousSignIn } from "@/firebase/non-blocking-login";
+import { useClientSideNotifications } from "@/hooks/use-client-side-notifications";
+
 
 const initialExpenses: Expense[] = [
     {
@@ -65,56 +67,6 @@ function AuthAwareHome() {
   const [deletingExpenseId, setDeletingExpenseId] = useState<string | null>(
     null
   );
-
-  const handleAddClick = () => {
-    setEditingExpense(null);
-    setIsSheetOpen(true);
-  };
-
-  const handleEditClick = (expense: Expense) => {
-    setEditingExpense(expense);
-    setIsSheetOpen(true);
-  };
-
-  const handleDeleteClick = (id: string) => {
-    setDeletingExpenseId(id);
-  };
-
-  const confirmDelete = async () => {
-    if (deletingExpenseId) {
-      setExpenses(prev => prev.filter(e => e.id !== deletingExpenseId));
-      setDeletingExpenseId(null);
-      toast({
-        title: "Expense Deleted",
-        description: "The expense has been successfully removed.",
-      });
-    }
-  };
-
-  const handleSaveExpense = async (expenseData: Omit<Expense, "id" | "status">) => {
-    if (editingExpense) {
-      // Update existing expense
-      setExpenses(prev => prev.map(e => e.id === editingExpense.id ? { ...editingExpense, ...expenseData } : e));
-      toast({
-        title: "Expense Updated",
-        description: `"${expenseData.title}" has been updated.`,
-      });
-    } else {
-      // Add new expense
-      const newExpense: Expense = {
-          ...expenseData,
-          id: Date.now().toString(),
-          status: 'Due',
-      };
-      setExpenses(prev => [...prev, newExpense]);
-      toast({
-        title: "Expense Added",
-        description: `"${expenseData.title}" has been added to your log.`,
-      });
-    }
-    setIsSheetOpen(false);
-    setEditingExpense(null);
-  };
 
   const handleStatusChange = useCallback(
     async (id: string, status: "Paid" | "Snoozed" | "Due") => {
@@ -173,6 +125,65 @@ function AuthAwareHome() {
     },
     [toast]
   );
+
+  useClientSideNotifications(expenses, (id, action) => {
+    if (action === 'snooze') {
+      handleStatusChange(id, 'Snoozed');
+    } else if (action === 'mark-as-paid') {
+      handleStatusChange(id, 'Paid');
+    }
+  });
+
+
+  const handleAddClick = () => {
+    setEditingExpense(null);
+    setIsSheetOpen(true);
+  };
+
+  const handleEditClick = (expense: Expense) => {
+    setEditingExpense(expense);
+    setIsSheetOpen(true);
+  };
+
+  const handleDeleteClick = (id: string) => {
+    setDeletingExpenseId(id);
+  };
+
+  const confirmDelete = async () => {
+    if (deletingExpenseId) {
+      setExpenses(prev => prev.filter(e => e.id !== deletingExpenseId));
+      setDeletingExpenseId(null);
+      toast({
+        title: "Expense Deleted",
+        description: "The expense has been successfully removed.",
+      });
+    }
+  };
+
+  const handleSaveExpense = async (expenseData: Omit<Expense, "id" | "status">) => {
+    if (editingExpense) {
+      // Update existing expense
+      setExpenses(prev => prev.map(e => e.id === editingExpense.id ? { ...editingExpense, ...expenseData } : e));
+      toast({
+        title: "Expense Updated",
+        description: `"${expenseData.title}" has been updated.`,
+      });
+    } else {
+      // Add new expense
+      const newExpense: Expense = {
+          ...expenseData,
+          id: Date.now().toString(),
+          status: 'Due',
+      };
+      setExpenses(prev => [...prev, newExpense]);
+      toast({
+        title: "Expense Added",
+        description: `"${expenseData.title}" has been added to your log.`,
+      });
+    }
+    setIsSheetOpen(false);
+    setEditingExpense(null);
+  };
 
   const sortedExpenses = useMemo(() => {
     return [...expenses].sort(
