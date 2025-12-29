@@ -68,14 +68,13 @@ function AuthAwareHome() {
         const snoozeUntil = new Date();
         snoozeUntil.setHours(snoozeUntil.getHours() + 1);
         expenseToUpdate.snoozeUntil = snoozeUntil;
-        await setDoc(expenseDocRef, { ...expenseToUpdate, snoozeUntil: Timestamp.fromDate(snoozeUntil) }, { merge: true });
+        await setDoc(expenseDocRef, { status: "Snoozed", snoozeUntil: Timestamp.fromDate(snoozeUntil) }, { merge: true });
         toast({
           title: "Reminder Snoozed",
           description: "We'll remind you again in an hour.",
         });
       } else {
-        expenseToUpdate.snoozeUntil = undefined;
-        await setDoc(expenseDocRef, { ...expenseToUpdate, snoozeUntil: undefined }, { merge: true });
+        await setDoc(expenseDocRef, { status, snoozeUntil: undefined }, { merge: true });
          if (status === "Paid") {
           toast({
             title: "Marked as Paid!",

@@ -121,17 +121,17 @@ service cloud.firestore {
      * @path /users/{userId}
      * @allow (get) An authenticated user with UID 'user_abc' can read '/users/user_abc'.
      * @allow (create) An authenticated user with UID 'user_abc' can create '/users/user_abc' if the document data contains `id: 'user_abc'`.
-     * @allow (list) The backend can list users to send notifications.
      * @deny (list) No end-user, authenticated or not, can list all documents in the `/users` collection.
      * @deny (update) An authenticated user with UID 'user_xyz' cannot update '/users/user_abc'.
      * @principle Restricts access to a user's own data tree and prevents user enumeration.
      */
     match /users/{userId} {
       allow get: if isOwner(userId);
-      allow list: if isBackend(); // Allow backend to list users for notifications
       allow create: if isOwner(userId) && isCreatingSelf(userId);
       allow update: if isExistingOwner(userId) && isUpdatingSelf();
       allow delete: if isExistingOwner(userId);
+      // Deny listing all users for security
+      allow list: if false; 
 
       // ===================================================================
       // Subcollection: fcmTokens
@@ -141,16 +141,16 @@ service cloud.firestore {
        * @path /users/{userId}/fcmTokens/{tokenId}
        * @allow (create) Authenticated user 'user_abc' can add a new FCM token.
        * @allow (read, delete) Authenticated user 'user_abc' can read or delete their own tokens.
-       * @allow (list) The backend can read tokens to send notifications.
        * @deny (update) Tokens should be created/deleted, not updated.
        * @principle Ensures a user can only manage notification tokens for their own account.
        */
        match /fcmTokens/{tokenId} {
          allow read: if isOwner(userId);
-         allow list: if isBackend(); // Allow backend to read tokens
          allow create: if isOwner(userId) && isCreatingValidSubdocument(userId);
          allow update: if false;
          allow delete: if isOwner(userId);
+         // Deny listing all tokens for a user, unless by a backend service in the future
+         allow list: if false;
        }
     }
 
@@ -163,14 +163,13 @@ service cloud.firestore {
      * @path /users/{userId}/reminders/{reminderId}
      * @allow (create) An authenticated user 'user_abc' can create a reminder at '/users/user_abc/reminders/new_reminder' if the document contains `userId: 'user_abc'`.
      * @allow (list) An authenticated user 'user_abc' can list all reminders under '/users/user_abc/reminders'.
-     * @allow (list) The backend can list reminders to check their due status.
      * @deny (get) An authenticated user 'user_xyz' cannot read a reminder from '/users/user_abc/reminders/some_reminder'.
      * @deny (update) An authenticated user 'user_abc' cannot change the `userId` field on an existing reminder.
      * @principle Enforces path-based ownership for all CRUD and list operations on a user's private subcollection.
      */
     match /users/{userId}/reminders/{reminderId} {
       allow get: if isOwner(userId);
-      allow list: if isOwner(userId) || isBackend();
+      allow list: if isOwner(userId);
       allow create: if isOwner(userId) && isCreatingValidSubdocument(userId);
       allow update: if isExistingOwner(userId) && isUpdatingValidSubdocument();
       allow delete: if isExistingOwner(userId);
@@ -185,14 +184,13 @@ service cloud.firestore {
      * @path /users/{userId}/expenseLogs/{expenseLogId}
      * @allow (create) An authenticated user 'user_abc' can create an expense log at '/users/user_abc/expenseLogs/new_log' if the document contains `userId: 'user_abc'`.
      * @allow (list) An authenticated user 'user_abc' can list all expense logs under '/users/user_abc/expenseLogs'.
-     * @allow (list) The backend can list expenses to check their due status.
      * @deny (get) An authenticated user 'user_xyz' cannot read an expense log from '/users/user_abc/expenseLogs/some_log'.
      * @deny (update) An authenticated user 'user_abc' cannot change the `userId` field on an existing expense log.
      * @principle Enforces path-based ownership for all CRUD and list operations on a user's private subcollection.
      */
     match /users/{userId}/expenseLogs/{expenseLogId} {
       allow get: if isOwner(userId);
-      allow list: if isOwner(userId) || isBackend();
+      allow list: if isOwner(userId);
       allow create: if isOwner(userId) && isCreatingValidSubdocument(userId);
       allow update: if isExistingOwner(userId) && isUpdatingValidSubdocument();
       allow delete: if isExistingOwner(userId);
