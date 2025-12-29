@@ -2,14 +2,48 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { Expense } from '@/lib/types';
-import { format } from 'date-fns';
+import type { Expense } from '@/lib/types';
+import { useUser } from '@/firebase';
+import { getMessaging, getToken, onMessage } from "firebase/messaging";
+import { useFirestore } from '@/firebase';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+
 
 type NotificationAction = 'snooze' | 'mark-as-paid';
 
-// A Map to keep track of which reminders have already had a notification shown for them
-// This prevents spamming the user with notifications every minute for an overdue item.
-const notifiedReminders = new Map<string, boolean>();
+async function requestNotificationPermission(userId: string, firestore: any) {
+  if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+    console.warn("Push notifications not supported in this browser.");
+    return;
+  }
+
+  const permission = await Notification.requestPermission();
+  if (permission === 'granted') {
+    const messaging = getMessaging();
+    // VAPID key is a public key, safe to include here. It's for identifying the application server.
+    const vapidKey = "BPE3J35p5qr7gWz2I9n2AYp1yA8l4V0pDOR2cT1I8V6JqGf-q8nJmGvX_gXh_x-0aC6i3r5aK_yVl4eF9p3n4M0";
+    try {
+      const currentToken = await getToken(messaging, { vapidKey });
+      if (currentToken) {
+        // Save the token to Firestore
+        const tokenRef = doc(firestore, `users/${userId}/fcmTokens`, currentToken);
+        await setDoc(tokenRef, { 
+          token: currentToken, 
+          userId: userId,
+          createdAt: serverTimestamp() 
+        });
+        console.log('FCM Token saved to Firestore.');
+      } else {
+        console.log('No registration token available. Request permission to generate one.');
+      }
+    } catch (err) {
+      console.error('An error occurred while retrieving token. ', err);
+    }
+  } else {
+    console.log('Notification permission denied.');
+  }
+}
+
 
 export function useClientSideNotifications(
   expenses: Expense[],
@@ -18,92 +52,38 @@ export function useClientSideNotifications(
   const onActionRef = useRef(onAction);
   onActionRef.current = onAction;
 
+  const { user } = useUser();
+  const firestore = useFirestore();
+
   useEffect(() => {
-    // 1. Request permission as soon as the component mounts
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission();
+    if (user) {
+      requestNotificationPermission(user.uid, firestore);
     }
-  }, []);
+  }, [user, firestore]);
+
 
   useEffect(() => {
-    // This function will be called every minute to check for due reminders
-    const checkReminders = () => {
-      if (!('Notification' in window) || Notification.permission !== 'granted') {
-        return; // Exit if notifications are not supported or permitted
-      }
-
-      const now = new Date();
-      const upcomingExpenses = expenses.filter(e => e.status === 'Due');
-
-      for (const expense of upcomingExpenses) {
-        const [hours, minutes] = expense.reminderTime.split(':').map(Number);
-        const reminderDateTime = new Date(expense.dueDate);
-        reminderDateTime.setHours(hours, minutes, 0, 0);
-
-        // Check if the reminder time is in the past, but no more than a minute ago.
-        // This ensures we catch the reminder right as it becomes due.
-        const isDue =
-          reminderDateTime <= now &&
-          now.getTime() - reminderDateTime.getTime() < 60000;
-
-        if (isDue && !notifiedReminders.has(expense.id)) {
-          // Mark this reminder as notified to prevent re-triggering
-          notifiedReminders.set(expense.id, true);
-
-          // Construct and show the notification
-          const notification = new Notification(`Payment Reminder: ${expense.title}`, {
-            body: `Your payment of $${expense.amount.toFixed(2)} is due.`,
-            icon: '/icons/icon-192x192.png',
-            tag: expense.id, // Use the expense ID as a tag to allow replacement
-            requireInteraction: true, // Keep notification on screen until user interacts
-            
-            // Note: Actions are not supported by all browsers/OS combinations
-            actions: [
-              { action: 'snooze', title: 'Snooze (1 Hour)' },
-              { action: 'mark-as-paid', title: 'Mark as Paid' },
-            ],
-          });
-          
-          // This is a browser limitation workaround. The 'notificationclick' event
-          // is handled by the service worker. When the app is in the foreground,
-          // the service worker might not be active to handle the click.
-          // This `onclose` logic is a fallback.
-          notification.onclose = () => {
-            // A custom property to track which action was clicked.
-            // This is set by the service worker.
-            if ((notification as any).lastAction) {
-                onActionRef.current(expense.id, (notification as any).lastAction);
-            }
-          };
-        }
-      }
-    };
-
-    // Set up the interval to run the check every minute
-    const intervalId = setInterval(checkReminders, 60000);
-
-    // Clean up the interval when the component unmounts
-    return () => clearInterval(intervalId);
-  }, [expenses]); // Re-run the effect if the list of expenses changes
-
-  useEffect(() => {
-    // This effect handles clicks on notification actions from the service worker
-    const handleMessage = (event: MessageEvent) => {
-      if (event.data?.type === 'NOTIFICATION_ACTION') {
-        const { expenseId, action } = event.data.payload;
-        onActionRef.current(expenseId, action);
-      }
-    };
-
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.addEventListener('message', handleMessage);
-    }
-    
-    return () => {
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.removeEventListener('message', handleMessage);
+      const handleMessage = (event: MessageEvent) => {
+        if (event.data?.type === 'NOTIFICATION_ACTION') {
+          const { expenseId, action } = event.data.payload;
+          onActionRef.current(expenseId, action as NotificationAction);
         }
-    };
+      };
+      
+      navigator.serviceWorker.addEventListener('message', handleMessage);
 
+      // Listen for foreground messages
+      const messaging = getMessaging();
+      const unsubscribe = onMessage(messaging, (payload) => {
+        console.log('Foreground message received.', payload);
+        // Here you could show an in-app toast notification instead of a system notification
+      });
+
+      return () => {
+        navigator.serviceWorker.removeEventListener('message', handleMessage);
+        unsubscribe();
+      };
+    }
   }, []);
 }
