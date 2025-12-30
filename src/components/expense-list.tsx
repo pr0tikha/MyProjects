@@ -86,16 +86,13 @@ function EmptyState({ message }: { message: string }) {
     )
 }
 
-export default function ExpenseList({ expenses, onEdit, onDelete, onStatusChange }: ExpenseListProps) {
+export default function ExpenseList({ expenses, onEdit, onDelete }: ExpenseListProps) {
   const { upcoming, history } = useMemo(() => {
     const upcoming = expenses.filter(e => e.status === 'Due' || e.status === 'Snoozed');
     const history = expenses.filter(e => e.status === 'Paid');
     return { upcoming, history };
   }, [expenses]);
   
-  const handleSwipe = (id: string) => {
-    onStatusChange(id, 'Paid');
-  }
 
   return (
     <Tabs defaultValue="upcoming" className="w-full">

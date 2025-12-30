@@ -6,6 +6,7 @@ const pwaConfig = {
   dest: 'public',
   register: true,
   skipWaiting: true,
+  disable: process.env.NODE_ENV === 'development',
 };
 
 const nextConfig: NextConfig = {
@@ -42,5 +43,5 @@ const nextConfig: NextConfig = {
   },
 };
 
-// @ts-ignore
+// @ts-ignore: The withPWA wrapper expects a webpack config, which Next.js abstracts away. This is a known workaround.
 export default withPWA(pwaConfig)(nextConfig);
