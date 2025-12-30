@@ -1,11 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
   Home,
-  Receipt,
   Shield,
-  Landmark,
-  Zap,
-  Flame,
   CreditCard,
   Car,
   Utensils,
@@ -14,9 +10,9 @@ import {
   Briefcase,
   Plane,
   MoreHorizontal,
-  Wifi,
   Repeat,
   HeartPulse,
+  Zap,
 } from "lucide-react";
 import type { ExpenseCategory } from "@/lib/types";
 

@@ -33,7 +33,7 @@ function Home() {
     try {
       const storedExpenses = localStorage.getItem("expenses");
       if (storedExpenses) {
-        const parsedExpenses: Expense[] = JSON.parse(storedExpenses).map((e: any) => ({
+        const parsedExpenses: Expense[] = JSON.parse(storedExpenses).map((e: Expense) => ({
           ...e,
           dueDate: new Date(e.dueDate),
           snoozeUntil: e.snoozeUntil ? new Date(e.snoozeUntil) : undefined,
@@ -67,7 +67,7 @@ function Home() {
 
   const handleStatusChange = useCallback(
     (id: string, status: "Paid" | "Snoozed" | "Due", showToast = true) => {
-      let updatedExpenses = [...expenses];
+      const updatedExpenses = [...expenses];
       const expenseIndex = updatedExpenses.findIndex((e) => e.id === id);
       if (expenseIndex === -1) return;
 
@@ -135,7 +135,7 @@ function Home() {
     setDeletingExpenseId(id);
   };
 
-  const confirmDelete = async () => {
+  const confirmDelete = () => {
     if (deletingExpenseId) {
       setExpenses(expenses.filter((e) => e.id !== deletingExpenseId));
       setDeletingExpenseId(null);
@@ -146,7 +146,7 @@ function Home() {
     }
   };
 
-  const handleSaveExpense = async (expenseData: Omit<Expense, "id" | "status">) => {
+  const handleSaveExpense = (expenseData: Omit<Expense, "id" | "status">) => {
     if (editingExpense) {
       setExpenses(
         expenses.map((e) =>

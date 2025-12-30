@@ -13,11 +13,11 @@ const getHhMm = (date: Date) => {
   return date.toTimeString().slice(0, 5);
 };
 
-export function useClientSideNotifications({ expenses, onStatusChange }: UseNotificationsProps) {
+export function useClientSideNotifications({ expenses, onStatusChange: _onStatusChange }: UseNotificationsProps) {
   const lastCheckedTimeRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!('Notification' in window)) {
+    if (!('Notification' in globalThis)) {
       console.warn('This browser does not support desktop notification.');
       return;
     }
@@ -74,7 +74,7 @@ export function useClientSideNotifications({ expenses, onStatusChange }: UseNoti
     });
 
     notification.onclick = () => {
-        window.focus();
+        globalThis.focus();
     };
 
     // Note: Notification action clicks are not directly handled in modern browsers.

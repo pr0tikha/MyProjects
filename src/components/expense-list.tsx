@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { Expense } from "@/lib/types";
@@ -37,7 +38,6 @@ function DueDateDisplay({ dueDate }: { dueDate: Date }) {
 
 function ExpenseItem({ expense, onEdit, onDelete }: { expense: Expense, onEdit: (expense: Expense) => void, onDelete: (id: string) => void }) {
   const Icon = categoryIcons[expense.category];
-  const isOverdue = expense.dueDate < new Date() && expense.status === 'Due';
   const isSnoozed = expense.status === 'Snoozed' && expense.snoozeUntil && expense.snoozeUntil > new Date();
 
   return (

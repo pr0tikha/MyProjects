@@ -43,4 +43,5 @@ const nextConfig: NextConfig = {
   },
 };
 
+// @ts-ignore
 export default withPWA(pwaConfig)(nextConfig);
