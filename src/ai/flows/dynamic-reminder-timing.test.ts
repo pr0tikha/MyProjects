@@ -2,8 +2,8 @@
 
 import test from 'node:test';
 import assert from 'node:assert';
-import { determineReminderTime } from './dynamic-reminder-timing.ts';
-import type { DetermineReminderTimeOutput } from './dynamic-reminder-timing.ts';
+import { determineReminderTime } from './dynamic-reminder-timing';
+import type { DetermineReminderTimeOutput } from './dynamic-reminder-timing';
 
 test('AI Reminder Timing Tests', async (t) => {
   await t.test(
@@ -23,7 +23,7 @@ test('AI Reminder Timing Tests', async (t) => {
       assert.ok(result, 'The result should not be null or undefined');
       assert.ok(result.reminderTime, 'The AI should suggest a reminder time.');
       assert.ok(
-        result.reasoning.toLowerCase().includes('rent'),
+        result.reasoning.toLowerCase().includes('rent') || result.reasoning.toLowerCase().includes('housing'),
         'The reasoning should mention rent or housing.'
       );
 
