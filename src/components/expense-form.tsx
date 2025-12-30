@@ -245,7 +245,9 @@ export default function ExpenseForm({
                                 mode="single"
                                 selected={field.value}
                                 onSelect={(date) => {
-                                field.onChange(date);
+                                if (date) {
+                                  field.onChange(date);
+                                }
                                 setIsCalendarOpen(false);
                                 }}
                                 disabled={(date) => {

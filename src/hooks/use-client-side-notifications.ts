@@ -5,7 +5,7 @@ import type { Expense, ExpenseStatus } from '@/lib/types';
 
 interface UseNotificationsProps {
     expenses: Expense[];
-    onStatusChange: (id: string, status: ExpenseStatus) => void;
+    onStatusChange: (id: string, status: ExpenseStatus, showToast: boolean) => void;
 }
 
 // Helper to get time in HH:mm format
