@@ -10,7 +10,8 @@
     "export": "next build && next export",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test --require dotenv/config src/ai/**/*.test.ts"
   },
   "dependencies": {
     "@capacitor/android": "^6.0.0",

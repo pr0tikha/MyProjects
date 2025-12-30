@@ -1,14 +1,12 @@
 'use server';
 
-import {
-  assert,
-  assertExists,
-} from 'https://deno.land/std@0.224.0/assert/mod.ts';
+import test from 'node:test';
+import assert from 'node:assert';
 import { determineReminderTime } from './dynamic-reminder-timing.ts';
 import type { DetermineReminderTimeOutput } from './dynamic-reminder-timing.ts';
 
-Deno.test('AI Reminder Timing Tests', async (t) => {
-  await t.step(
+test('AI Reminder Timing Tests', async (t) => {
+  await t.test(
     'should suggest a morning reminder for a rent payment due today',
     async () => {
       // GIVEN a rent payment due today
@@ -22,20 +20,20 @@ Deno.test('AI Reminder Timing Tests', async (t) => {
       const result: DetermineReminderTimeOutput = await determineReminderTime(input);
 
       // THEN it should return a valid time and a logical reason
-      assertExists(result);
-      assertExists(result.reminderTime, 'The AI should suggest a reminder time.');
-      assert(
+      assert.ok(result, 'The result should not be null or undefined');
+      assert.ok(result.reminderTime, 'The AI should suggest a reminder time.');
+      assert.ok(
         result.reasoning.toLowerCase().includes('rent'),
         'The reasoning should mention rent or housing.'
       );
 
       // And the time should be in the morning, as per the prompt guidelines
       const [hour] = result.reminderTime.split(':').map(Number);
-      assert(hour < 12, 'The reminder time for rent should be in the morning.');
+      assert.ok(hour < 12, 'The reminder time for rent should be in the morning.');
     }
   );
 
-  await t.step(
+  await t.test(
     'should suggest a reminder 7 days prior for an insurance payment',
     async () => {
         // GIVEN an insurance payment
@@ -49,9 +47,9 @@ Deno.test('AI Reminder Timing Tests', async (t) => {
         const result = await determineReminderTime(input);
 
         // THEN it should return a valid time and a logical reason mentioning the 7-day lead time
-        assertExists(result);
-        assertExists(result.reminderTime);
-        assert(
+        assert.ok(result);
+        assert.ok(result.reminderTime);
+        assert.ok(
             result.reasoning.toLowerCase().includes('7 days'),
             'The reasoning for insurance should mention a 7-day lead time.'
         );
