@@ -8,7 +8,7 @@
  * - DetermineReminderTimeOutput - The return type for the determineReminderTime function.
  */
 
-import {ai} from '../genkit';
+import {ai} from '../genkit.ts';
 import {z} from 'genkit';
 
 const DetermineReminderTimeInputSchema = z.object({
