@@ -35,7 +35,7 @@ const DetermineReminderTimeOutputSchema = z.object({
 export type DetermineReminderTimeOutput = z.infer<typeof DetermineReminderTimeOutputSchema>;
 
 export async function determineReminderTime(input: DetermineReminderTimeInput): Promise<DetermineReminderTimeOutput> {
-  return determineReminderTimeFlow(input);
+  return await determineReminderTimeFlow(input);
 }
 
 const prompt = ai.definePrompt({
